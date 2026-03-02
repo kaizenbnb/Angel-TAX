@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://api.anthropic.com; img-src 'self' data:;">
   <title>Angel Tax — Fiscalidad Cripto España</title>
   <meta name="description" content="La herramienta definitiva para la fiscalidad de criptomonedas en España. Open source, gratuita y 100% privada."/>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 5 L15 20 L15 60 Q15 85 50 95 Q85 85 85 60 L85 20 Z' fill='%231e3a6e' stroke='%236ab0f5' stroke-width='3'/%3E%3Cpath d='M50 5 L15 20 L15 60 Q15 85 50 95 Q32 85 32 60 L32 20 Z' fill='%232a5298' opacity='0.7'/%3E%3C/svg%3E"/>
@@ -359,6 +358,7 @@ function renderHeader() {
       </div>
     </div>
     ${showProfileModal ? renderProfileModal() : ""}`;
+}
 
 function renderNav(sm) {
   const tabs = [
@@ -826,15 +826,25 @@ function renderGuide() {
       <div class="ff-serif" style="font-size:17px;margin-bottom:4px">💛 Apoya Angel Tax</div>
       <div style="font-size:13px;color:var(--dim);margin-bottom:16px">Angel Tax es 100% open source y gratuito. Si te ha ahorrado tiempo o dinero y quieres contribuir:</div>
       ${[
-        {icon:"₿",label:"Bitcoin",  addr:"Añade tu dirección BTC"},
-        {icon:"Ξ",label:"Ethereum", addr:"Añade tu dirección ETH"},
-        {icon:"◎",label:"Solana",   addr:"Añade tu dirección SOL"},
+        {icon:"₿", label:"Bitcoin",  network:"Red Bitcoin (BTC nativa)",  color:"#f7931a", addr:"bc1q6urerf7ncm4khhplxatl9cn8na70shu4lanks6"},
+        {icon:"Ξ", label:"Ethereum", network:"Red Ethereum (ERC-20)",      color:"#627eea", addr:"0x026066a7d38420297881575738Fea1BeB33Ed29f"},
+        {icon:"◎", label:"Solana",   network:"Red Solana (SOL nativa)",    color:"#9945ff", addr:"34ERsZd46CozZxiUtoZLTEUAs8Xt7zL9UF4qgyb5Vuse"},
+        {icon:"⬡", label:"BNB",      network:"BNB Smart Chain (BEP-20)",   color:"#f0b90b", addr:"0x11EFFaBCBDd5902eCf66fe93FF5A36B27C3A67Cc"},
       ].map(w=>`
-        <div style="background:var(--sur2);border:1px solid var(--bor);border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
-          <span style="font-size:20px;width:30px;text-align:center">${w.icon}</span>
-          <div>
-            <div style="font-weight:600;font-size:13px">${w.label}</div>
-            <div style="font-size:12px;color:var(--mut);font-family:monospace">${w.addr}</div>
+        <div style="background:var(--sur2);border:1px solid var(--bor);border-radius:10px;padding:14px 16px;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            <span style="font-size:20px;width:28px;text-align:center;color:${w.color}">${w.icon}</span>
+            <div>
+              <div style="font-weight:700;font-size:13px;color:${w.color}">${w.label}</div>
+              <div style="font-size:10px;color:var(--mut)">${w.network}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;background:var(--sur);border:1px solid var(--bor);border-radius:7px;padding:8px 12px">
+            <div style="font-size:11px;color:var(--dim);font-family:monospace;flex:1;word-break:break-all;line-height:1.5">${w.addr}</div>
+            <button onclick="copyWallet('${w.addr}', this)"
+              style="background:var(--sur2);border:1px solid var(--bor2);border-radius:6px;color:var(--dim);padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap;flex-shrink:0;transition:all .15s">
+              📋 Copiar
+            </button>
           </div>
         </div>`).join("")}
       <div style="margin-top:14px;font-size:12px;color:var(--mut);line-height:1.8">
@@ -843,6 +853,30 @@ function renderGuide() {
         Áreas prioritarias: importador CSV de exchanges, más tipos DeFi, tests automáticos.
       </div>
     </div>`;
+}
+
+function copyWallet(addr, btn) {
+  navigator.clipboard.writeText(addr).then(() => {
+    const orig = btn.innerHTML;
+    btn.innerHTML = "✅ Copiado";
+    btn.style.color = "var(--green)";
+    btn.style.borderColor = "var(--green)";
+    setTimeout(() => {
+      btn.innerHTML = orig;
+      btn.style.color = "";
+      btn.style.borderColor = "";
+    }, 2000);
+  }).catch(() => {
+    // Fallback for browsers without clipboard API
+    const ta = document.createElement("textarea");
+    ta.value = addr;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    btn.innerHTML = "✅ Copiado";
+    setTimeout(() => btn.innerHTML = "📋 Copiar", 2000);
+  });
 }
 
 // ─── CSV IMPORT STATE ───
