@@ -1165,21 +1165,31 @@ function renderImport() {
 }
 
 function renderImportPreview() {
-  const p = importState.preview;
-  if (!p || p.length === 0) {
+  const p = importState.preview || [];
+  const lots = importState.previewLots || [];
+  if (p.length === 0 && lots.length === 0) {
     return `<div class="alert alert-orange">⚠️ No se encontraron operaciones válidas en el CSV. Verifica que el tipo de informe seleccionado coincide con el archivo.</div>`;
   }
+  const totalItems = p.length + lots.length;
+  const btnLabel = [
+    p.length > 0    ? `${p.length} operaciones` : "",
+    lots.length > 0 ? `${lots.length} lotes FIFO` : ""
+  ].filter(Boolean).join(" + ");
+
   return `
     <div>
       <div style="font-size:12px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">
-        Vista previa — ${p.length} operaciones detectadas
+        Vista previa — ${p.length} operaciones + ${lots.length} compras (lotes FIFO)
       </div>
       ${importState.errors.length>0?`<div class="alert alert-orange">⚠️ ${importState.errors.length} filas omitidas por datos incompletos o formato no reconocido.</div>`:""}
+
+      ${p.length > 0 ? `
+      <div style="font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;margin:12px 0 8px">Operaciones imponibles</div>
       <div style="overflow-x:auto;margin-bottom:16px">
         <table>
           <thead><tr><th>Fecha</th><th>Activo</th><th>Tipo</th><th>Adquisición</th><th>Transmisión</th><th>G/P Neta</th><th>Casilla</th></tr></thead>
           <tbody>
-            ${p.slice(0,10).map(op=>`
+            ${p.slice(0,8).map(op=>`
               <tr>
                 <td style="font-size:12px;color:var(--dim)">${op.date}</td>
                 <td style="font-weight:600">${op.asset}</td>
@@ -1189,21 +1199,45 @@ function renderImportPreview() {
                 <td style="color:${op.gain>=0?"var(--green)":"var(--red)"};font-weight:700">${op.gain>=0?"+":""}${fmt(op.gain)}</td>
                 <td><span class="casilla">${op.casilla}</span></td>
               </tr>`).join("")}
-            ${p.length>10?`<tr><td colspan="7" style="text-align:center;color:var(--dim);font-size:12px;padding:12px">... y ${p.length-10} operaciones más</td></tr>`:""}
+            ${p.length>8?`<tr><td colspan="7" style="text-align:center;color:var(--dim);font-size:12px;padding:12px">... y ${p.length-8} operaciones más</td></tr>`:""}
           </tbody>
         </table>
       </div>
       <div style="background:var(--sur2);border:1px solid var(--bor2);border-radius:10px;padding:16px;margin-bottom:16px;display:flex;gap:24px;flex-wrap:wrap">
         ${[
-          {l:"Total operaciones", v:p.length},
-          {l:"Ganancias (1800)",  v:fmt(p.filter(o=>o.casilla==="1800"&&o.gain>0).reduce((s,o)=>s+o.gain,0)), c:"var(--green)"},
-          {l:"Pérdidas (1800)",   v:fmt(Math.abs(p.filter(o=>o.casilla==="1800"&&o.gain<0).reduce((s,o)=>s+o.gain,0))), c:"var(--red)"},
-          {l:"Ingresos (0033)",   v:fmt(p.filter(o=>o.casilla==="0033").reduce((s,o)=>s+o.gain,0)), c:"var(--blue)"},
-          {l:"Airdrops (1626)",   v:fmt(p.filter(o=>o.casilla==="1626").reduce((s,o)=>s+o.gain,0)), c:"var(--orange)"},
+          {l:"Total ops",        v:p.length},
+          {l:"Ganancias (1800)", v:fmt(p.filter(o=>o.casilla==="1800"&&o.gain>0).reduce((s,o)=>s+o.gain,0)), c:"var(--green)"},
+          {l:"Pérdidas (1800)",  v:fmt(Math.abs(p.filter(o=>o.casilla==="1800"&&o.gain<0).reduce((s,o)=>s+o.gain,0))), c:"var(--red)"},
+          {l:"Ingresos (0033)",  v:fmt(p.filter(o=>o.casilla==="0033").reduce((s,o)=>s+o.gain,0)), c:"var(--blue)"},
+          {l:"Airdrops (1626)",  v:fmt(p.filter(o=>o.casilla==="1626").reduce((s,o)=>s+o.gain,0)), c:"var(--orange)"},
         ].map(x=>`<div><div style="font-size:11px;color:var(--dim);font-weight:600;text-transform:uppercase;letter-spacing:.8px">${x.l}</div><div style="font-size:18px;font-weight:700;color:${x.c||"var(--gold2)"};margin-top:2px">${x.v}</div></div>`).join("")}
+      </div>` : ""}
+
+      ${lots.length > 0 ? `
+      <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.8px;margin:12px 0 8px">🛍️ Lotes FIFO detectados (compras → base de coste automática)</div>
+      <div style="overflow-x:auto;margin-bottom:16px">
+        <table>
+          <thead><tr><th>Fecha</th><th>Activo</th><th>Cantidad</th><th>Coste total</th><th>Precio/u</th><th>Fees</th><th>Fuente</th></tr></thead>
+          <tbody>
+            ${lots.slice(0,8).map(l=>`
+              <tr>
+                <td style="font-size:12px;color:var(--dim)">${l.date}</td>
+                <td style="font-weight:600">${l.asset}</td>
+                <td>${fmtQty(l.qty)}</td>
+                <td class="c-gold fw7">${fmt(l.totalEur)} €</td>
+                <td class="c-dim" style="font-size:12px">${l.qty>0?fmt((l.totalEur+l.fees)/l.qty)+" €/u":"—"}</td>
+                <td class="c-dim" style="font-size:12px">${l.fees>0?fmt(l.fees)+" €":"—"}</td>
+                <td><span style="background:var(--bd);color:var(--blue);border-radius:8px;padding:2px 8px;font-size:11px">${l.source}</span></td>
+              </tr>`).join("")}
+            ${lots.length>8?`<tr><td colspan="7" style="text-align:center;color:var(--dim);font-size:12px;padding:12px">... y ${lots.length-8} lotes más</td></tr>`:""}
+          </tbody>
+        </table>
       </div>
+      <div class="alert alert-blue" style="margin-bottom:12px">🤖 <strong>FIFO automático:</strong> Estos lotes se añadirán al inventario y se usarán para calcular el coste de adquisición en tus ventas. Sin que tengas que introducir nada manualmente.</div>
+      ` : ""}
+
       <div style="display:flex;gap:12px;flex-wrap:wrap">
-        <button class="btn-primary" onclick="confirmImport()">✅ Importar ${p.length} operaciones</button>
+        <button class="btn-primary" onclick="confirmImport()">✅ Importar ${btnLabel}</button>
         <button class="btn-sec" onclick="cancelImport()">✕ Cancelar</button>
       </div>
     </div>`;
@@ -1254,13 +1288,14 @@ function getInstructions(ex) {
 }
 
 function selectExchange(id) {
-  importState = { exchange: id, csvType: null, preview: null, errors: [], imported: 0 };
+  importState = { exchange: id, csvType: null, preview: null, previewLots: [], errors: [], imported: 0 };
   render();
 }
 
 function selectCsvType(id) {
   importState.csvType = id;
   importState.preview = null;
+  importState.previewLots = [];
   importState.errors = [];
   render();
 }
@@ -1274,10 +1309,12 @@ function handleCsvFile(input) {
       const text = e.target.result;
       const result = parseCSV(text, importState.csvType);
       importState.preview = result.ops;
+      importState.previewLots = result.lots;
       importState.errors = result.errors;
       render();
     } catch(err) {
       importState.preview = [];
+      importState.previewLots = [];
       importState.errors = ["Error al leer el archivo: " + err.message];
       render();
     }
@@ -1295,7 +1332,7 @@ function parseCSV(text, type) {
   const sep = detectSeparator(lines[0]);
   const headers = parseCsvLine(lines[0], sep).map(h => h.trim().toLowerCase().replace(/[\s\/\-]/g,"_"));
 
-  const ops = [], errors = [];
+  const ops = [], lots = [], errors = [];
 
   for (let i = 1; i < lines.length; i++) {
     const row = parseCsvLine(lines[i], sep);
@@ -1305,30 +1342,34 @@ function parseCSV(text, type) {
     headers.forEach((h, idx) => { obj[h] = (row[idx]||"").trim(); });
 
     try {
-      let op = null;
-      if      (type === "binance_gains")  op = parseBinanceGains(obj, i);
-      else if (type === "binance_income") op = parseBinanceIncome(obj, i);
-      else if (type === "coinbase_tx")    op = parseCoinbaseTx(obj, i);
-      else if (type === "bit2me_tx")      op = parseBit2MeTx(obj, i);
-      else if (type === "kraken_ledger")  op = parseKrakenLedger(obj, i);
-      else if (type === "kraken_trades")  op = parseKrakenTrades(obj, i);
-      else if (type === "revolut_crypto") op = parseRevolutCrypto(obj, i);
-      else if (type === "etoro_account")  op = parseEtoroAccount(obj, i);
-      else if (type === "bitvavo_tx")     op = parseBitvavoTx(obj, i);
-      else if (type === "okx_trades")     op = parseOkxTrades(obj, i);
-      else if (type === "okx_funding")    op = parseOkxFunding(obj, i);
-      else if (type === "bitpanda_tx")    op = parseBitpandaTx(obj, i);
-      else if (type === "bitget_spot")    op = parseBitgetSpot(obj, i);
-      else if (type === "bitget_earn")    op = parseBitgetEarn(obj, i);
+      let result = null;
+      if      (type === "binance_gains")  result = parseBinanceGains(obj, i);
+      else if (type === "binance_income") result = parseBinanceIncome(obj, i);
+      else if (type === "coinbase_tx")    result = parseCoinbaseTx(obj, i);
+      else if (type === "bit2me_tx")      result = parseBit2MeTx(obj, i);
+      else if (type === "kraken_ledger")  result = parseKrakenLedger(obj, i);
+      else if (type === "kraken_trades")  result = parseKrakenTrades(obj, i);
+      else if (type === "revolut_crypto") result = parseRevolutCrypto(obj, i);
+      else if (type === "etoro_account")  result = parseEtoroAccount(obj, i);
+      else if (type === "bitvavo_tx")     result = parseBitvavoTx(obj, i);
+      else if (type === "okx_trades")     result = parseOkxTrades(obj, i);
+      else if (type === "okx_funding")    result = parseOkxFunding(obj, i);
+      else if (type === "bitpanda_tx")    result = parseBitpandaTx(obj, i);
+      else if (type === "bitget_spot")    result = parseBitgetSpot(obj, i);
+      else if (type === "bitget_earn")    result = parseBitgetEarn(obj, i);
 
-      if (op) ops.push(op);
-      else errors.push(`Fila ${i+1}: datos insuficientes`);
+      if (result) {
+        if (result._lot) lots.push(result);
+        else ops.push(result);
+      } else {
+        errors.push(`Fila ${i+1}: datos insuficientes`);
+      }
     } catch(e) {
       errors.push(`Fila ${i+1}: ${e.message}`);
     }
   }
 
-  return { ops, errors };
+  return { ops, lots, errors };
 }
 
 function detectSeparator(line) {
@@ -1478,8 +1519,9 @@ function parseCoinbaseTx(obj, row) {
     };
   }
 
-  // Buy → no taxable event at purchase
-  throw new Error("Compra (no imponible)");
+  // Buy → create FIFO lot
+  const cost = Math.abs(total||subtotal||spotPrice*qty);
+  return lotObj(asset, date, qty, cost, 0, "Coinbase");
 }
 
 // ── Bit2Me ──
@@ -1514,6 +1556,11 @@ function parseBit2MeTx(obj, row) {
       gain: eurValue, casilla: "0033",
       notes: `Importado Bit2Me · ${type}`
     };
+  }
+
+  if (type.includes("buy")||type.includes("compra")) {
+    const cost = eurValue > 0 ? eurValue : costBasis;
+    return lotObj(asset, date, amount, cost, 0, "Bit2Me");
   }
 
   throw new Error(`Tipo '${type}' no imponible`);
@@ -1591,7 +1638,10 @@ function parseKrakenTrades(obj, row) {
     };
   }
 
-  throw new Error(`Tipo '${type}' (buy) no es evento imponible`);
+  if (type==="buy") {
+    return lotObj(base, date, vol, cost, fee, "Kraken");
+  }
+  throw new Error(`Tipo '${type}' no procesable`);
 }
 
 // ── Revolut Crypto ──
@@ -1622,7 +1672,8 @@ function parseRevolutCrypto(obj, row) {
   }
 
   if (type==="buy"||type==="compra") {
-    throw new Error("Compra — no es evento imponible");
+    const cost = fiatFees > 0 ? fiatFees : proceeds; // fiatFees includes purchase fees
+    return lotObj(currency, date, amount, cost, fee, "Revolut");
   }
 
   if (type==="cashback"||type==="reward"||type==="staking") {
@@ -1700,7 +1751,8 @@ function parseBitvavoTx(obj, row) {
   }
 
   if (type==="buy"||type==="comprar") {
-    throw new Error("Compra — no es evento imponible");
+    const cost = amount * price;
+    return lotObj(asset, date, amount, cost, feeEur, "Bitvavo");
   }
 
   if (type==="staking"||type==="reward"||type==="interest"||type==="earn") {
@@ -1745,10 +1797,12 @@ function parseOkxTrades(obj, row) {
     };
   }
 
-  throw new Error(`Lado '${side}' (buy) no es evento imponible`);
+  if (side==="buy"||side==="compra") {
+    const cost = filled > 0 ? filled : qty * price;
+    return lotObj(base, date, qty, cost, fee, "OKX");
+  }
+  throw new Error(`Lado '${side}' no procesable`);
 }
-
-// ── OKX Funding/Earn ──
 // Columns: Time, Currency, Amount, Type (Staking/Savings/etc.)
 function parseOkxFunding(obj, row) {
   const asset  = (obj["currency"]||obj["ccy"]||"").toUpperCase();
@@ -1795,7 +1849,8 @@ function parseBitpandaTx(obj, row) {
   }
 
   if (txType==="buy"||txType==="trade_buy"||(txType==="trade"&&inOut==="incoming")) {
-    throw new Error("Compra — no es evento imponible");
+    const cost = amtFiat > 0 ? amtFiat : amtAsset * price;
+    return lotObj(asset, date, amtAsset, cost, fee, "Bitpanda");
   }
 
   if (txType.includes("reward")||txType.includes("cashback")||txType.includes("staking")||txType.includes("interest")) {
@@ -1840,7 +1895,11 @@ function parseBitgetSpot(obj, row) {
     };
   }
 
-  throw new Error(`Lado '${side}' (buy) no es evento imponible`);
+  if (side==="buy") {
+    const cost = total > 0 ? total : filled * avg;
+    return lotObj(base, date, filled, cost, feeEur, "Bitget");
+  }
+  throw new Error(`Lado '${side}' no procesable`);
 }
 
 // ── Bitget Earn ──
@@ -1864,16 +1923,27 @@ function parseBitgetEarn(obj, row) {
 }
 
 function confirmImport() {
-  if (!importState.preview || importState.preview.length === 0) return;
-  const added = importState.preview.length;
-  state.ops = [...state.ops, ...importState.preview];
-  importState = { exchange: null, csvType: null, preview: null, errors: [], imported: added };
+  if (!importState.preview && (!importState.previewLots || importState.previewLots.length === 0)) return;
+  const addedOps  = (importState.preview  || []).length;
+  const addedLots = (importState.previewLots || []).length;
+
+  state.ops  = [...state.ops,  ...(importState.preview || [])];
+
+  // Convert lot objects to real lots in state.lots
+  for (const lot of (importState.previewLots || [])) {
+    addLot(lot.asset, lot.date, lot.qty, lot.totalEur, lot.fees);
+  }
+
+  importState = { exchange: null, csvType: null, preview: null, previewLots: [], errors: [], imported: addedOps };
   currentTab = "home";
   render();
-  // Show a brief success message via alert-style banner
+
+  const parts = [];
+  if (addedOps  > 0) parts.push(`${addedOps} operaciones`);
+  if (addedLots > 0) parts.push(`${addedLots} lotes FIFO`);
   const banner = document.createElement("div");
   banner.style.cssText = "position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#0e3324;border:1px solid var(--green);color:var(--green);padding:12px 24px;border-radius:10px;font-weight:600;font-size:14px;z-index:999;box-shadow:0 4px 20px #00000060";
-  banner.textContent = `✅ ${added} operaciones importadas correctamente`;
+  banner.textContent = `✅ Importados: ${parts.join(" + ")}`;
   document.body.appendChild(banner);
   setTimeout(()=>banner.remove(), 3500);
 }
@@ -2686,6 +2756,19 @@ function availableQty(asset) {
 
 function isFifoOp(type) {
   return ["compraventa","permuta","pago","nft","lp_retiro","liquidacion","envio_regalo"].includes(type);
+}
+
+// Helper: build a lot object from a CSV buy row
+function lotObj(asset, date, qty, totalEur, fees, source) {
+  return {
+    _lot: true,
+    asset: (asset||"").toUpperCase(),
+    date: date || "—",
+    qty:  parseFloat(qty)  || 0,
+    totalEur: parseFloat(totalEur) || 0,
+    fees: parseFloat(fees) || 0,
+    source: source || "CSV"
+  };
 }
 
 function hasFifoLots(asset) {
