@@ -207,6 +207,7 @@ function render() {
     ${renderNav(sm)}
     ${currentTab==="home"   ? renderHome(sm)   : ""}
     ${currentTab==="add"    ? renderAdd()       : ""}
+    ${currentTab==="import" ? renderImport()    : ""}
     ${currentTab==="report" ? renderReport(sm)  : ""}
     ${currentTab==="guide"  ? renderGuide()     : ""}
     ${renderPrivacyBar()}
@@ -309,8 +310,9 @@ function renderHeader() {
 function renderNav(sm) {
   const tabs = [
     {id:"home",  icon:"🏠", label:"Inicio"},
-    {id:"add",   icon:"➕", label:"Nueva Operación"},
-    {id:"report",icon:"📄", label:"Mi Informe"},
+    {id:"add",    icon:"➕", label:"Nueva Operación"},
+    {id:"import", icon:"📥", label:"Importar CSV"},
+    {id:"report", icon:"📄", label:"Mi Informe"},
     {id:"guide", icon:"📚", label:"Guía Fiscal"},
   ];
   return `<div class="nav">${tabs.map(t=>`
@@ -682,6 +684,419 @@ function renderGuide() {
         Áreas prioritarias: importador CSV de exchanges, más tipos DeFi, tests automáticos.
       </div>
     </div>`;
+}
+
+// ─── CSV IMPORT STATE ───
+let importState = { exchange: null, csvType: null, preview: null, errors: [], imported: 0 };
+
+function renderImport() {
+  const ex = importState.exchange;
+  const ct = importState.csvType;
+
+  return `<div class="card">
+    <div class="card-title">📥 Importar CSV</div>
+    <div class="card-sub" style="margin-bottom:20px">Importa tus transacciones directamente desde tu exchange</div>
+
+    <div class="alert alert-gold">
+      🔒 <strong>Privacidad:</strong> El archivo CSV se procesa <strong>únicamente en tu navegador</strong>. Nunca se sube a ningún servidor.
+    </div>
+
+    <!-- PASO 1: Seleccionar exchange -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:12px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Paso 1 — Selecciona tu exchange</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
+        ${[
+          {id:"binance",  label:"Binance",  icon:"🟡"},
+          {id:"coinbase", label:"Coinbase", icon:"🔵"},
+          {id:"bit2me",   label:"Bit2Me",   icon:"🟢"},
+        ].map(e=>`
+          <div onclick="selectExchange('${e.id}')"
+               style="background:${ex===e.id?"var(--sur3)":"var(--sur2)"};border:1.5px solid ${ex===e.id?"var(--gold)":"var(--bor)"};border-radius:10px;padding:14px;text-align:center;cursor:pointer;transition:all .15s">
+            <div style="font-size:24px;margin-bottom:6px">${e.icon}</div>
+            <div style="font-weight:600;font-size:13px;color:${ex===e.id?"var(--gold2)":"var(--text)"}">${e.label}</div>
+          </div>`).join("")}
+      </div>
+    </div>
+
+    <!-- PASO 2: Tipo de CSV (solo si exchange seleccionado) -->
+    ${ex ? `
+    <div style="margin-bottom:20px">
+      <div style="font-size:12px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Paso 2 — Tipo de informe CSV</div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px">
+        ${getCsvTypes(ex).map(t=>`
+          <div onclick="selectCsvType('${t.id}')"
+               style="background:${ct===t.id?"var(--sur3)":"var(--sur2)"};border:1.5px solid ${ct===t.id?"var(--gold)":"var(--bor)"};border-radius:10px;padding:12px 16px;cursor:pointer;transition:all .15s;flex:1;min-width:180px">
+            <div style="font-weight:600;font-size:13px;color:${ct===t.id?"var(--gold2)":"var(--text)"};margin-bottom:3px">${t.label}</div>
+            <div style="font-size:11px;color:var(--dim)">${t.desc}</div>
+            <span class="casilla" style="margin-top:8px;display:inline-block">${t.casilla}</span>
+          </div>`).join("")}
+      </div>
+      <div class="alert alert-blue" style="margin-top:14px">
+        ${getInstructions(ex)}
+      </div>
+    </div>` : ""}
+
+    <!-- PASO 3: Upload (solo si tipo seleccionado) -->
+    ${ex && ct ? `
+    <div style="margin-bottom:20px">
+      <div style="font-size:12px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Paso 3 — Sube el archivo CSV</div>
+      <label style="display:block;background:var(--sur2);border:2px dashed var(--bor2);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:border-color .2s" id="dropzone">
+        <input type="file" accept=".csv" id="csvFile" style="display:none" onchange="handleCsvFile(this)"/>
+        <div style="font-size:36px;margin-bottom:10px">📂</div>
+        <div style="font-weight:600;color:var(--text);margin-bottom:4px">Haz clic para seleccionar el CSV</div>
+        <div style="font-size:12px;color:var(--dim)">o arrastra el archivo aquí</div>
+      </label>
+    </div>` : ""}
+
+    <!-- PREVIEW de resultados -->
+    ${importState.preview ? renderImportPreview() : ""}
+  </div>`;
+}
+
+function renderImportPreview() {
+  const p = importState.preview;
+  if (!p || p.length === 0) {
+    return `<div class="alert alert-orange">⚠️ No se encontraron operaciones válidas en el CSV. Verifica que el tipo de informe seleccionado coincide con el archivo.</div>`;
+  }
+  return `
+    <div>
+      <div style="font-size:12px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">
+        Vista previa — ${p.length} operaciones detectadas
+      </div>
+      ${importState.errors.length>0?`<div class="alert alert-orange">⚠️ ${importState.errors.length} filas omitidas por datos incompletos o formato no reconocido.</div>`:""}
+      <div style="overflow-x:auto;margin-bottom:16px">
+        <table>
+          <thead><tr><th>Fecha</th><th>Activo</th><th>Tipo</th><th>Adquisición</th><th>Transmisión</th><th>G/P Neta</th><th>Casilla</th></tr></thead>
+          <tbody>
+            ${p.slice(0,10).map(op=>`
+              <tr>
+                <td style="font-size:12px;color:var(--dim)">${op.date}</td>
+                <td style="font-weight:600">${op.asset}</td>
+                <td><span style="background:var(--bd);color:var(--blue);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600">${op.typeName}</span></td>
+                <td>${op.acq>0?fmt(op.acq):"—"}</td>
+                <td>${fmt(op.trans)}</td>
+                <td style="color:${op.gain>=0?"var(--green)":"var(--red)"};font-weight:700">${op.gain>=0?"+":""}${fmt(op.gain)}</td>
+                <td><span class="casilla">${op.casilla}</span></td>
+              </tr>`).join("")}
+            ${p.length>10?`<tr><td colspan="7" style="text-align:center;color:var(--dim);font-size:12px;padding:12px">... y ${p.length-10} operaciones más</td></tr>`:""}
+          </tbody>
+        </table>
+      </div>
+      <div style="background:var(--sur2);border:1px solid var(--bor2);border-radius:10px;padding:16px;margin-bottom:16px;display:flex;gap:24px;flex-wrap:wrap">
+        ${[
+          {l:"Total operaciones", v:p.length},
+          {l:"Ganancias (1800)",  v:fmt(p.filter(o=>o.casilla==="1800"&&o.gain>0).reduce((s,o)=>s+o.gain,0)), c:"var(--green)"},
+          {l:"Pérdidas (1800)",   v:fmt(Math.abs(p.filter(o=>o.casilla==="1800"&&o.gain<0).reduce((s,o)=>s+o.gain,0))), c:"var(--red)"},
+          {l:"Ingresos (0033)",   v:fmt(p.filter(o=>o.casilla==="0033").reduce((s,o)=>s+o.gain,0)), c:"var(--blue)"},
+          {l:"Airdrops (1626)",   v:fmt(p.filter(o=>o.casilla==="1626").reduce((s,o)=>s+o.gain,0)), c:"var(--orange)"},
+        ].map(x=>`<div><div style="font-size:11px;color:var(--dim);font-weight:600;text-transform:uppercase;letter-spacing:.8px">${x.l}</div><div style="font-size:18px;font-weight:700;color:${x.c||"var(--gold2)"};margin-top:2px">${x.v}</div></div>`).join("")}
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <button class="btn-primary" onclick="confirmImport()">✅ Importar ${p.length} operaciones</button>
+        <button class="btn-sec" onclick="cancelImport()">✕ Cancelar</button>
+      </div>
+    </div>`;
+}
+
+function getCsvTypes(ex) {
+  const types = {
+    binance: [
+      {id:"binance_gains",  label:"Ganancias de capital realizadas", desc:"Compraventas y permutas",         casilla:"1800"},
+      {id:"binance_income", label:"Ganancias de ingresos",           desc:"Staking, rewards, cashback",      casilla:"0033"},
+    ],
+    coinbase: [
+      {id:"coinbase_tx",    label:"Transaction Report",              desc:"Todas las transacciones",         casilla:"1800/0033"},
+    ],
+    bit2me: [
+      {id:"bit2me_tx",      label:"Historial de transacciones",      desc:"Exportación de Bit2Me",           casilla:"1800"},
+    ],
+  };
+  return types[ex] || [];
+}
+
+function getInstructions(ex) {
+  const inst = {
+    binance:  "📍 <strong>Binance:</strong> binance.com/es/tax → Informes fiscales → Selecciona el año → Generar → Descargar CSV",
+    coinbase: "📍 <strong>Coinbase:</strong> coinbase.com → Impuestos → Documentos → Descargar informe de transacciones (.csv)",
+    bit2me:   "📍 <strong>Bit2Me:</strong> bit2me.com → Mi cuenta → Actividad → Exportar → CSV",
+  };
+  return inst[ex] || "";
+}
+
+function selectExchange(id) {
+  importState = { exchange: id, csvType: null, preview: null, errors: [], imported: 0 };
+  render();
+}
+
+function selectCsvType(id) {
+  importState.csvType = id;
+  importState.preview = null;
+  importState.errors = [];
+  render();
+}
+
+function handleCsvFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const text = e.target.result;
+      const result = parseCSV(text, importState.csvType);
+      importState.preview = result.ops;
+      importState.errors = result.errors;
+      render();
+    } catch(err) {
+      importState.preview = [];
+      importState.errors = ["Error al leer el archivo: " + err.message];
+      render();
+    }
+  };
+  reader.readAsText(file, "UTF-8");
+}
+
+// ── PARSERS ──────────────────────────────────────────────
+function parseCSV(text, type) {
+  // Normalize line endings and split
+  const lines = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").filter(l=>l.trim());
+  if (lines.length < 2) return { ops: [], errors: ["CSV vacío o sin datos"] };
+
+  // Parse header
+  const sep = detectSeparator(lines[0]);
+  const headers = parseCsvLine(lines[0], sep).map(h => h.trim().toLowerCase().replace(/[\s\/\-]/g,"_"));
+
+  const ops = [], errors = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const row = parseCsvLine(lines[i], sep);
+    if (row.length < 2 || row.every(c=>!c.trim())) continue;
+
+    const obj = {};
+    headers.forEach((h, idx) => { obj[h] = (row[idx]||"").trim(); });
+
+    try {
+      let op = null;
+      if      (type === "binance_gains")  op = parseBinanceGains(obj, i);
+      else if (type === "binance_income") op = parseBinanceIncome(obj, i);
+      else if (type === "coinbase_tx")    op = parseCoinbaseTx(obj, i);
+      else if (type === "bit2me_tx")      op = parseBit2MeTx(obj, i);
+
+      if (op) ops.push(op);
+      else errors.push(`Fila ${i+1}: datos insuficientes`);
+    } catch(e) {
+      errors.push(`Fila ${i+1}: ${e.message}`);
+    }
+  }
+
+  return { ops, errors };
+}
+
+function detectSeparator(line) {
+  const commas    = (line.match(/,/g)  ||[]).length;
+  const semicolons= (line.match(/;/g)  ||[]).length;
+  const tabs      = (line.match(/\t/g) ||[]).length;
+  if (tabs > commas && tabs > semicolons) return "\t";
+  if (semicolons > commas) return ";";
+  return ",";
+}
+
+function parseCsvLine(line, sep) {
+  // Handle quoted fields
+  const result = [];
+  let cur = "", inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; continue; }
+    if (c === sep && !inQ) { result.push(cur); cur = ""; continue; }
+    cur += c;
+  }
+  result.push(cur);
+  return result;
+}
+
+function toNum(s) {
+  if (!s || s==="N/A" || s==="-") return 0;
+  // Handle European number format (1.234,56 → 1234.56)
+  const cleaned = s.replace(/[€$£\s]/g,"").replace(",",".");
+  // If there are multiple dots, it's European thousands separator
+  const dots = (cleaned.match(/\./g)||[]).length;
+  if (dots > 1) return parseFloat(cleaned.replace(/\./g,"").replace(",","."));
+  return parseFloat(cleaned) || 0;
+}
+
+function formatDate(raw) {
+  if (!raw || raw==="N/A") return "";
+  // Try ISO format: 2024-01-03 13:09 or 2024-01-03T13:09
+  const m1 = raw.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m1) return `${m1[1]}-${m1[2]}-${m1[3]}`;
+  // Try DD/MM/YYYY
+  const m2 = raw.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (m2) return `${m2[3]}-${m2[2]}-${m2[1]}`;
+  return raw.substring(0, 10);
+}
+
+// ── Binance Realized Capital Gains ──
+// Columns: currency name, currency amount, acquired, sold, proceeds, [cost basis, gain/loss]
+function parseBinanceGains(obj, row) {
+  // Try multiple possible column name variants
+  const asset = obj["currency_name"] || obj["asset"] || obj["coin"] || "";
+  if (!asset) throw new Error("No se encontró nombre de activo");
+
+  const amount  = toNum(obj["currency_amount"] || obj["amount"] || "0");
+  const sold    = formatDate(obj["sold"]    || obj["sell_date"] || obj["date_sold"] || "");
+  const acq     = formatDate(obj["acquired"]|| obj["buy_date"]  || obj["date_acquired"] || "");
+  const proceeds= toNum(obj["proceeds"]     || obj["sale_proceeds"] || "0");
+  const costBasis=toNum(obj["cost_basis"]   || obj["cost"]          || "0");
+  const gainLoss = obj["gain_loss"] !== undefined
+    ? toNum(obj["gain_loss"])
+    : proceeds - costBasis;
+
+  if (proceeds === 0 && costBasis === 0 && gainLoss === 0) throw new Error("Valores a 0");
+
+  return {
+    id: genId(), type: "compraventa", typeName: "Compraventa",
+    asset: asset.toUpperCase(),
+    date: sold || acq || "",
+    acq: costBasis, trans: proceeds, fees: 0,
+    gain: gainLoss !== 0 ? gainLoss : proceeds - costBasis,
+    casilla: "1800", notes: `Importado Binance · ${amount} ${asset}`
+  };
+}
+
+// ── Binance Income (staking/rewards) ──
+// Columns: date, type/source, primary_asset, realized_amount, realized_amount_in_eur, [eur_value]
+function parseBinanceIncome(obj, row) {
+  const asset = obj["primary_asset"]||obj["asset"]||obj["coin"]||obj["currency_name"]||"";
+  if (!asset) throw new Error("No se encontró activo");
+
+  const date   = formatDate(obj["date"]||obj["time"]||obj["acquired"]||"");
+  const eurVal = toNum(obj["realized_amount_in_eur"]||obj["eur_value"]||obj["value_eur"]||obj["proceeds"]||"0");
+  const source = (obj["type"]||obj["source"]||obj["transaction_type"]||"").toLowerCase();
+
+  // Determine casilla based on source type
+  let casilla = "0033", typeName = "Staking/Lending";
+  if (source.includes("airdrop")||source.includes("distribution")) {
+    casilla = "1626"; typeName = "Airdrop";
+  } else if (source.includes("cashback")||source.includes("referral")||source.includes("reward")) {
+    casilla = "1626"; typeName = "Airdrop";
+  }
+
+  if (eurVal === 0) throw new Error("Valor EUR a 0");
+
+  return {
+    id: genId(), type: casilla==="0033"?"staking":"airdrop", typeName,
+    asset: asset.toUpperCase(), date,
+    acq: 0, trans: eurVal, fees: 0,
+    gain: eurVal, casilla,
+    notes: `Importado Binance Ingresos · ${source}`
+  };
+}
+
+// ── Coinbase ──
+// Columns: timestamp, transaction type, asset, quantity transacted, spot price currency, spot price at transaction, subtotal, total (inclusive of fees and/or spread), notes
+function parseCoinbaseTx(obj, row) {
+  const txType = (obj["transaction_type"]||obj["type"]||"").toLowerCase();
+  const asset  = obj["asset"]||"";
+  if (!asset) throw new Error("Sin activo");
+
+  const date      = formatDate(obj["timestamp"]||obj["date"]||"");
+  const spotPrice = toNum(obj["spot_price_at_transaction"]||obj["spot_price"]||"0");
+  const qty       = toNum(obj["quantity_transacted"]||obj["quantity"]||"0");
+  const total     = toNum(obj["total_(inclusive_of_fees_and/or_spread)"]||obj["total"]||"0");
+  const subtotal  = toNum(obj["subtotal"]||"0");
+
+  // Skip non-taxable: deposits, withdrawals
+  if (txType==="deposit"||txType==="withdrawal"||txType==="send"||txType==="receive"||
+      txType==="deposito"||txType==="retiro") {
+    throw new Error("Operación no imponible (" + txType + ")");
+  }
+
+  if (txType==="sell"||txType==="venta"||txType==="convert"||txType==="converted") {
+    const proceeds = Math.abs(total||subtotal);
+    if (proceeds === 0) throw new Error("Proceeds a 0");
+    // For sells we only have proceeds - no cost basis in Coinbase CSV
+    return {
+      id: genId(), type:"compraventa", typeName:"Compraventa",
+      asset: asset.toUpperCase(), date,
+      acq: 0, trans: proceeds, fees: 0,
+      gain: proceeds, // Sin base de coste disponible - usuario debe ajustar
+      casilla: "1800",
+      notes: `Importado Coinbase · ${qty} ${asset} · ⚠️ Revisar base de coste`
+    };
+  }
+
+  if (txType==="rewards income"||txType==="staking income"||txType==="learning reward"||
+      txType==="coinbase earn"||txType==="interest income") {
+    const val = Math.abs(total||subtotal);
+    if (val === 0) throw new Error("Valor a 0");
+    return {
+      id: genId(), type:"staking", typeName:"Staking/Lending",
+      asset: asset.toUpperCase(), date,
+      acq: 0, trans: val, fees: 0,
+      gain: val, casilla: "0033",
+      notes: `Importado Coinbase · ${txType}`
+    };
+  }
+
+  // Buy → no taxable event at purchase
+  throw new Error("Compra (no imponible)");
+}
+
+// ── Bit2Me ──
+// Columns vary - try common Bit2Me export format
+function parseBit2MeTx(obj, row) {
+  const type  = (obj["type"]||obj["tipo"]||obj["transaction_type"]||"").toLowerCase();
+  const asset = obj["asset"]||obj["activo"]||obj["currency"]||obj["moneda"]||"";
+  if (!asset) throw new Error("Sin activo");
+
+  const date     = formatDate(obj["date"]||obj["fecha"]||obj["timestamp"]||"");
+  const amount   = toNum(obj["amount"]||obj["cantidad"]||"0");
+  const eurValue = toNum(obj["eur_value"]||obj["valor_eur"]||obj["total_eur"]||obj["price_eur"]||"0");
+  const costBasis= toNum(obj["cost_basis"]||obj["base_coste"]||"0");
+
+  if (type.includes("sell")||type.includes("vend")||type.includes("trade")) {
+    const gain = costBasis > 0 ? eurValue - costBasis : eurValue;
+    return {
+      id: genId(), type:"compraventa", typeName:"Compraventa",
+      asset: asset.toUpperCase(), date,
+      acq: costBasis, trans: eurValue, fees: 0,
+      gain, casilla: "1800",
+      notes: `Importado Bit2Me · ${amount} ${asset}`
+    };
+  }
+
+  if (type.includes("staking")||type.includes("reward")||type.includes("earn")) {
+    if (eurValue === 0) throw new Error("Valor a 0");
+    return {
+      id: genId(), type:"staking", typeName:"Staking/Lending",
+      asset: asset.toUpperCase(), date,
+      acq: 0, trans: eurValue, fees: 0,
+      gain: eurValue, casilla: "0033",
+      notes: `Importado Bit2Me · ${type}`
+    };
+  }
+
+  throw new Error(`Tipo '${type}' no imponible`);
+}
+
+function confirmImport() {
+  if (!importState.preview || importState.preview.length === 0) return;
+  const added = importState.preview.length;
+  state.ops = [...state.ops, ...importState.preview];
+  importState = { exchange: null, csvType: null, preview: null, errors: [], imported: added };
+  currentTab = "home";
+  render();
+  // Show a brief success message via alert-style banner
+  const banner = document.createElement("div");
+  banner.style.cssText = "position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#0e3324;border:1px solid var(--green);color:var(--green);padding:12px 24px;border-radius:10px;font-weight:600;font-size:14px;z-index:999;box-shadow:0 4px 20px #00000060";
+  banner.textContent = `✅ ${added} operaciones importadas correctamente`;
+  document.body.appendChild(banner);
+  setTimeout(()=>banner.remove(), 3500);
+}
+
+function cancelImport() {
+  importState = { exchange: null, csvType: null, preview: null, errors: [], imported: 0 };
+  render();
 }
 
 function renderPrivacyBar() {
