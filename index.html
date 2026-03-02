@@ -112,7 +112,7 @@
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
-let state = { ops: [], lots: [], balances: [], year: String(new Date().getFullYear() - 1) };
+let state = { ops: [], lots: [], balances: [], year: String(new Date().getFullYear() - 1), costMethod: "fifo" };
 let currentTab = "home";
 let currentOpType = null;
 let formData = {};
@@ -770,7 +770,37 @@ function renderAdd() {
       </div>
     </div>
     ` : isFifoMode ? `
-    <div class="alert alert-blue">🤖 <strong>Modo FIFO automático:</strong> Tienes <strong>${fmtQty(availQty)} ${assetUpper}</strong> en lotes. Introduce la cantidad vendida y el precio — el coste de adquisición se calcula solo.</div>
+    <div class="alert alert-blue">🤖 <strong>Modo automático activo:</strong> Tienes <strong>${fmtQty(availQty)} ${assetUpper}</strong> en lotes. El coste de adquisición se calcula solo.</div>
+
+    <div style="margin-bottom:16px">
+      <label class="form-label">Método de coste</label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div onclick="state.costMethod='fifo';calcResult=null;render()"
+             style="background:${state.costMethod==='fifo'?'var(--sur3)':'var(--sur2)'};border:1.5px solid ${state.costMethod==='fifo'?'var(--gold2)':'var(--bor2)'};border-radius:10px;padding:10px 16px;cursor:pointer;flex:1;min-width:140px">
+          <div style="font-weight:700;color:${state.costMethod==='fifo'?'var(--gold2)':'var(--text)'};font-size:13px">FIFO</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:2px">Primero en entrar, primero en salir — método estándar AEAT</div>
+        </div>
+        <div onclick="state.costMethod='specific';calcResult=null;render()"
+             style="background:${state.costMethod==='specific'?'var(--sur3)':'var(--sur2)'};border:1.5px solid ${state.costMethod==='specific'?'var(--gold2)':'var(--bor2)'};border-radius:10px;padding:10px 16px;cursor:pointer;flex:1;min-width:140px">
+          <div style="font-weight:700;color:${state.costMethod==='specific'?'var(--gold2)':'var(--text)'};font-size:13px">Identificación específica</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:2px">Eliges el lote exacto — válido si puedes documentarlo (TSJPV 2025)</div>
+        </div>
+      </div>
+      ${state.costMethod==='specific'?`<div class="alert alert-orange" style="margin-top:8px;font-size:12px">⚖️ <strong>Sentencia TSJPV 2025:</strong> Hacienda acepta identificación específica si puedes acreditar documentalmente qué unidades concretas vendiste (extracto del exchange con IDs de transacción). Úsalo solo si tienes esa documentación.</div>`:""}
+    </div>
+
+    ${state.costMethod==='specific'?`
+    <div class="form-group" style="margin-bottom:16px">
+      <label class="form-label">Lote a usar</label>
+      <select class="form-input" id="f-lotid" onchange="saveFormData();calcResult=null;render()">
+        <option value="">-- Elige el lote --</option>
+        ${getSpecificLots(formData.asset||"").map(l=>`
+          <option value="${l.id}" ${formData.lotId===l.id?"selected":""}>
+            ${l.date} · ${fmtQty(l.qtyRemaining)} ${l.asset} disponibles · ${fmt(l.pricePerUnit)} €/u (coste ${fmt(l.qtyRemaining*l.pricePerUnit)} €)
+          </option>`).join("")}
+      </select>
+    </div>` : ""}
+
     <div class="form-grid3">
       <div class="form-group">
         <label class="form-label">Cantidad vendida (unidades)</label>
@@ -857,7 +887,9 @@ function renderAdd() {
       ` : `
       ${calcResult.isFifoMode && calcResult.fifo ? `
       <div class="result-box" style="border-color:var(--blue);margin-bottom:8px">
-        <div style="font-weight:700;font-size:12px;color:var(--blue);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">🤖 Desglose FIFO automático</div>
+        <div style="font-weight:700;font-size:12px;color:var(--blue);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">
+          🤖 ${calcResult.method==='specific'?'Identificación específica (TSJPV 2025)':'Desglose FIFO automático'}
+        </div>
         ${calcResult.fifo.lotsUsed.map(l=>`
         <div class="result-row" style="font-size:12px">
           <span class="c-dim">Lote ${l.lotDate}</span>
@@ -966,6 +998,7 @@ function renderReport(sm) {
         <div class="card-sub">Resumen para completar tu declaración de la renta</div>
       </div>
       <button class="btn-primary" onclick="downloadReport()">⬇️ Descargar .txt</button>
+      <button class="btn-sec" style="color:var(--red);border-color:var(--red)" onclick="clearSavedState()">🗑 Borrar todo</button>
     </div>
 
     <div class="card" style="border-color:var(--bor2)">
@@ -1940,6 +1973,7 @@ function confirmImport() {
 
   importState = { exchange: null, csvType: null, preview: null, previewLots: [], errors: [], imported: addedOps };
   currentTab = "home";
+  saveState();
   render();
 
   const parts = [];
@@ -2731,6 +2765,30 @@ function fifoPreview(asset, qtySold) {
   return fifoCalc(asset, qtySold, 0);
 }
 
+// ── Identificación Específica (TSJPV 2025) ──
+// El usuario elige exactamente qué lote usa para cada venta
+// Solo válido si puede justificar documentalmente el lote concreto
+function getSpecificLots(asset) {
+  return state.lots
+    .filter(l => l.asset === asset.toUpperCase() && l.qtyRemaining > 0)
+    .sort((a,b) => a.date.localeCompare(b.date));
+}
+
+function specificCalc(lotId, qtySold) {
+  const lot = state.lots.find(l => l.id === lotId);
+  if (!lot) return null;
+  const take = Math.min(qtySold, lot.qtyRemaining);
+  const acqCost = take * lot.pricePerUnit;
+  return {
+    totalAcq: acqCost,
+    lotsUsed: [{ lotId, qty: take, pricePerUnit: lot.pricePerUnit, acqCost, lotDate: lot.date }],
+    qtyFound: take,
+    warning: take < qtySold
+      ? `⚠️ El lote solo tiene ${fmtQty(take)} ${lot.asset} disponibles — faltan ${fmtQty(qtySold - take)} unidades`
+      : null
+  };
+}
+
 // Consume lots after confirmed addOperation
 function consumeLots(lotsUsed) {
   for (const used of lotsUsed) {
@@ -2741,6 +2799,7 @@ function consumeLots(lotsUsed) {
 
 function deleteLot(id) {
   state.lots = state.lots.filter(l => l.id !== id);
+  saveState();
   render();
 }
 
@@ -2788,6 +2847,7 @@ function addBalance(exchangeId, exchangeLabel, eur, foreign) {
 
 function deleteBalance(exchangeId) {
   state.balances = state.balances.filter(b => b.exchangeId !== exchangeId);
+  saveState();
   render();
 }
 
@@ -2938,6 +2998,7 @@ function saveFormData() {
   formData.notes = get("f-notes");
   formData.qty   = get("f-qty");   // FIFO: cantidad de unidades
   formData.price = get("f-price"); // FIFO: precio unitario de venta
+  formData.lotId = get("f-lotid"); // Identificación específica: lote elegido
 }
 
 
@@ -2974,10 +3035,10 @@ function calculate() {
             : currentOpType==="mineria"   ? "Act.Económica"
             : "1800";
 
-  // ── Modo FIFO ──
+  // ── Modo FIFO / Identificación específica ──
   if (isFifoOp(currentOpType) && formData.asset && hasFifoLots(formData.asset)) {
     const qty    = parseFloat(formData.qty)   || 0;
-    const price  = parseFloat(formData.price) || 0; // precio unitario venta
+    const price  = parseFloat(formData.price) || 0;
     const trans  = qty > 0 && price > 0 ? qty * price : parseFloat(formData.trans) || 0;
 
     if (qty <= 0 || trans <= 0) {
@@ -2986,14 +3047,20 @@ function calculate() {
       return;
     }
 
-    const fifo = fifoPreview(formData.asset, qty);
-    const gain = trans - (fifo ? fifo.totalAcq : 0) - fees;
+    let fifo;
+    if (state.costMethod === "specific" && formData.lotId) {
+      fifo = specificCalc(formData.lotId, qty);
+    } else {
+      fifo = fifoPreview(formData.asset, qty);
+    }
 
+    const gain = trans - (fifo ? fifo.totalAcq : 0) - fees;
     calcResult = {
       gain, cas, tax: calcTax(Math.max(gain, 0)),
       fifo, qty, trans,
       acqFifo: fifo ? fifo.totalAcq : 0,
-      isFifoMode: true
+      isFifoMode: true,
+      method: state.costMethod
     };
     render();
     return;
@@ -3053,11 +3120,13 @@ function addOperation() {
   });
 
   currentOpType = null; formData = {}; calcResult = null;
+  saveState();
   goTab("home");
 }
 
 function deleteOp(id) {
   state.ops = state.ops.filter(o=>o.id!==id);
+  saveState();
   render();
 }
 
@@ -3068,9 +3137,32 @@ function toggleGuide(i) {
 
 function downloadReport() {
   const sm = getSummary();
+  const m721Total = getM721Total();
+  const m721Lines = state.balances.length > 0 ? [
+    "", "=".repeat(50), "MODELO 721 — SALDO EN EXCHANGES A 31/DIC/" + state.year,
+    "=".repeat(50),
+    ...state.balances.map(b => `${b.label.padEnd(20)} ${fmt(b.eur).padStart(14)} €  ${b.foreign ? "[EXTRANJERO — computa M721]" : "[España — no computa]"}`),
+    "-".repeat(50),
+    `${"TOTAL EXCHANGES EXTRANJEROS".padEnd(20)} ${fmt(m721Total).padStart(14)} €`,
+    m721Total >= 50000
+      ? ">>> MODELO 721 OBLIGATORIO — Presenta antes del 31 de marzo de " + (parseInt(state.year)+1)
+      : ">>> Modelo 721 no obligatorio (umbral: 50.000 €)",
+  ] : ["", "MODELO 721: Sin saldos registrados."];
+
+  const lotsLines = state.lots.length > 0 ? [
+    "", "=".repeat(50), "INVENTARIO DE LOTES FIFO",
+    "=".repeat(50),
+    "Fecha       | Activo | Qty comprada   | Qty disponible | Precio/u       | Coste total",
+    "-".repeat(85),
+    ...state.lots.map(l =>
+      `${l.date} | ${l.asset.padEnd(6)} | ${fmtQty(l.qty).padStart(14)} | ${fmtQty(l.qtyRemaining).padStart(14)} | ${fmt(l.pricePerUnit).padStart(12)} € | ${fmt(l.totalEur+l.fees).padStart(10)} €`
+    ),
+  ] : [];
+
   const lines = [
     "ANGEL TAX — INFORME FISCAL CRIPTO " + state.year,
     "Generado: " + new Date().toLocaleDateString("es-ES"),
+    "Método coste: " + (state.costMethod === "specific" ? "Identificación específica (TSJPV 2025)" : "FIFO (estándar AEAT)"),
     "=".repeat(50), "",
     "BASE DEL AHORRO:       " + fmt(sm.base) + "  (tramos 19%-30%)",
     "IMPUESTO ESTIMADO:     " + fmt(sm.tax),
@@ -3081,11 +3173,16 @@ function downloadReport() {
     sm.mineria>0 ? "Minería (Act.Econ.):    " + fmt(sm.mineria) + "  (BASE GENERAL — hasta 47%)" : "",
     "",
     "-".repeat(50), "OPERACIONES DETALLADAS:", "-".repeat(50),
-    ...state.ops.map(o=>`${o.date} | ${o.typeName} | ${o.asset} | ${o.gain>=0?"+":""}${fmt(o.gain)} | Casilla ${o.casilla}`),
-    "", "DISCLAIMER: Herramienta orientativa. Consulta siempre un asesor fiscal certificado.",
+    ...state.ops.map(o =>
+      `${o.date} | ${o.typeName.padEnd(15)} | ${o.asset.padEnd(6)} | ${o.qty?fmtQty(o.qty).padStart(12)+" u":""} | Adq: ${fmt(o.acq).padStart(10)} € | Trans: ${fmt(o.trans).padStart(10)} € | G/P: ${(o.gain>=0?"+":"")+fmt(o.gain)} | Casilla ${o.casilla}${o.fifoMode?" [FIFO]":""}`
+    ),
+    ...m721Lines,
+    ...lotsLines,
+    "", "=".repeat(50),
+    "DISCLAIMER: Herramienta orientativa. Consulta siempre un asesor fiscal certificado.",
     "Open Source: https://github.com/kaizenbnb/Angel-TAX"
   ];
-  const blob = new Blob([lines.join("\n")], {type:"text/plain;charset=utf-8"});
+  const blob = new Blob([lines.filter(l=>l!==null&&l!==undefined).join("\n")], {type:"text/plain;charset=utf-8"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `AngelTax_Informe_${state.year}.txt`;
@@ -3101,8 +3198,46 @@ function attachEvents() {
 }
 
 // ═══════════════════════════════════════════
+// PERSISTENCIA
+// ═══════════════════════════════════════════
+const STORAGE_KEY = "angeltax_v1";
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      ops: state.ops,
+      lots: state.lots,
+      balances: state.balances,
+      year: state.year,
+      costMethod: state.costMethod
+    }));
+  } catch(e) { /* cuota excedida o privado */ }
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (saved.ops)       state.ops       = saved.ops;
+    if (saved.lots)      state.lots      = saved.lots;
+    if (saved.balances)  state.balances  = saved.balances;
+    if (saved.year)      state.year      = saved.year;
+    if (saved.costMethod) state.costMethod = saved.costMethod;
+  } catch(e) { /* JSON inválido — ignorar */ }
+}
+
+function clearSavedState() {
+  if (!confirm("¿Borrar todos los datos guardados? Esta acción no se puede deshacer.")) return;
+  localStorage.removeItem(STORAGE_KEY);
+  state = { ops: [], lots: [], balances: [], year: String(new Date().getFullYear() - 1), costMethod: "fifo" };
+  render();
+}
+
+// ═══════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════
+loadState();
 render();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
