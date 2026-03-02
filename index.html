@@ -168,36 +168,62 @@ const BRACKETS = [
   { max:50000,   rate:0.21, label:"6.000 € – 50.000 €" },
   { max:200000,  rate:0.23, label:"50.000 € – 200.000 €" },
   { max:300000,  rate:0.27, label:"200.000 € – 300.000 €" },
-  { max:Infinity,rate:0.28, label:"Más de 300.000 €" },
+  { max:Infinity,rate:0.30, label:"Más de 300.000 €" },
 ];
 
 const OPS = [
-  {id:"compraventa",icon:"💱",name:"Compraventa",    desc:"Venta de cripto por € o fiat",            casilla:"1800",          isIncome:false},
-  {id:"permuta",    icon:"🔄",name:"Permuta (Swap)", desc:"Intercambio de una cripto por otra",       casilla:"1800",          isIncome:false},
-  {id:"pago",       icon:"🛒",name:"Pago con cripto",desc:"Usaste cripto para comprar algo",          casilla:"1800",          isIncome:false},
-  {id:"staking",    icon:"📈",name:"Staking/Lending",desc:"Recompensas por bloquear o prestar criptos",casilla:"0033",         isIncome:true },
-  {id:"airdrop",    icon:"🎁",name:"Airdrop/Hardfork",desc:"Criptos recibidas sin contraprestación",  casilla:"1626",          isIncome:true },
-  {id:"mineria",    icon:"⛏️",name:"Minería",        desc:"Ingresos por minar criptomonedas",         casilla:"Act.Económica", isIncome:true, isGeneral:true},
-  {id:"nft",        icon:"🖼️",name:"NFT",            desc:"Compraventa o royalties de NFTs",          casilla:"1800",          isIncome:false},
-  {id:"defi",       icon:"🏦",name:"DeFi/Liquidity", desc:"Yield farming, liquidity pools",           casilla:"0033/1800",     isIncome:true },
+  {id:"compraventa", icon:"💱", name:"Compraventa",          desc:"Venta de cripto por € o fiat",                     casilla:"1800",          isIncome:false},
+  {id:"permuta",     icon:"🔄", name:"Permuta / DEX Swap",   desc:"Intercambio cripto por cripto. Cada swap tributa.", casilla:"1800",          isIncome:false},
+  {id:"pago",        icon:"🛒", name:"Pago con cripto",       desc:"Usaste cripto para comprar algo",                  casilla:"1800",          isIncome:false},
+  {id:"staking",     icon:"📈", name:"Staking",               desc:"Recompensas por validar red (Lido, Rocket Pool…)", casilla:"0033",          isIncome:true },
+  {id:"lending",     icon:"🏦", name:"Lending DeFi",          desc:"Intereses de Aave, Compound, etc.",                casilla:"0033",          isIncome:true },
+  {id:"lp_fees",     icon:"🌊", name:"Liquidity Pool (fees)", desc:"Comisiones cobradas como LP en AMM",               casilla:"0033",          isIncome:true },
+  {id:"lp_retiro",   icon:"🌊", name:"LP — Retirada de liquidez", desc:"Al retirar del pool: ganancia o pérdida patrimonial", casilla:"1800",   isIncome:false},
+  {id:"liquidacion", icon:"💥", name:"Liquidación (Borrowing)",desc:"Venta forzosa de colateral — SÍ tributa como G/P",casilla:"1800",          isIncome:false},
+  {id:"envio_propio",icon:"↔️", name:"Envío entre mis wallets",desc:"Mover cripto entre tus propias wallets — NO tributa",casilla:"—",          isIncome:false, noTax:true},
+  {id:"envio_regalo",icon:"🎁🔄",name:"Envío a otra persona",  desc:"Donar o regalar cripto — tú tributas como venta",  casilla:"1800",          isIncome:false},
+  {id:"airdrop",     icon:"🎁", name:"Airdrop / Hardfork",    desc:"Criptos recibidas sin contraprestación",            casilla:"1626",          isIncome:true },
+  {id:"mineria",     icon:"⛏️", name:"Minería",               desc:"Ingresos por minar criptomonedas",                  casilla:"Act.Económica", isIncome:true, isGeneral:true},
+  {id:"nft",         icon:"🖼️", name:"NFT",                   desc:"Compraventa o royalties de NFTs",                   casilla:"1800",          isIncome:false},
 ];
 
 const GUIDES = [
   {icon:"📋",title:"Casilla 1800 — Compraventas y Permutas",cas:"1800",
-   body:"La casilla principal para el 90% de los inversores. Aquí va toda venta o intercambio de cripto. La ganancia se calcula como: Valor de transmisión − (Valor de adquisición + Comisiones). El método FIFO es obligatorio. IMPORTANTE: la permuta BTC→ETH también tributa aunque no conviertas a euros — Hacienda lo considera una venta al valor de mercado.",
-   tips:["Guarda siempre los CSVs de tus exchanges con todo el historial","Las comisiones de compra y venta reducen la ganancia","Las pérdidas son compensables con ganancias hasta 4 años","Holding (comprar y no vender) NO tributa nunca en el IRPF"]},
-  {icon:"💰",title:"Casilla 0033 — Staking y Lending",cas:"0033",
-   body:"Las recompensas de staking tributan como Rendimiento del Capital Mobiliario según la consulta vinculante DGT V1766-22, que equipara el staking a un depósito retribuido. Tributa en el momento de recibir las recompensas, al valor de mercado en ese instante. Si después vendes esas recompensas, esa plusvalía adicional va a la casilla 1800.",
-   tips:["Documenta el valor de mercado exacto al recibir cada recompensa (usa CoinGecko histórico)","Los exchanges suelen tener informes de staking descargables","Nexo, Celsius, intereses de cualquier plataforma: también aquí","Liquidity pools — los fees acumulados van a 0033"]},
+   body:"La casilla principal para el 90% de los inversores. Aquí va toda venta o intercambio de cripto. La ganancia se calcula como: Valor de transmisión − (Valor de adquisición + Comisiones). El método FIFO es obligatorio. IMPORTANTE: la permuta BTC→ETH también tributa aunque no conviertas a euros — Hacienda lo considera una venta al valor de mercado. Ejemplo real del webinar TaxDown×Binance (feb 2026): compras 1 ETH a 2.000€, lo cambias por 1 BNB cuando ETH vale 3.500€ → ganancia = 1.500€ aunque no hayas tocado ni un euro.",
+   tips:["Guarda siempre los CSVs de tus exchanges con todo el historial","Las comisiones de compra y venta reducen la ganancia","Las pérdidas son compensables con ganancias hasta 4 años","Holding (comprar y no vender) NO tributa nunca en el IRPF","Cada DEX swap = permuta. Tributa aunque uses Uniswap, PancakeSwap, etc."]},
+
+  {icon:"💰",title:"Casilla 0033 — Staking, Lending y Fees de LP",cas:"0033",
+   body:"Los rendimientos del capital mobiliario van aquí: staking (Lido, Rocket Pool, staking en Binance), intereses de lending (Aave, Compound), y las comisiones cobradas como proveedor de liquidez (LP fees). Tributan en el momento de recibirlos, al valor de mercado en ese instante. Tipo: 19-30% (base del ahorro). Si después vendes esas recompensas, esa plusvalía adicional va a la casilla 1800.",
+   tips:["Staking: las recompensas tributan al recibirlas, no al venderlas","Lending DeFi (Aave, Compound): los intereses van aquí — el préstamo en sí NO tributa","LP fees: las comisiones acumuladas como LP van a 0033","Documenta el valor de mercado exacto al recibir cada recompensa (CoinGecko histórico)","Los exchanges tienen informes de staking descargables — úsalos"]},
+
+  {icon:"🌊",title:"Liquidity Pools (AMM) — Ciclo fiscal completo",cas:"1800/0033",
+   body:"Los pools de liquidez (Uniswap, PancakeSwap, Curve…) tienen 4 momentos con tratamiento fiscal diferente: (1) Depositar el par de tokens puede ser una permuta imponible → casilla 1800. (2) Recibir el LP Token que representa tu posición → NO tributa. (3) Cobrar comisiones de los traders → Rendimiento del capital mobiliario → casilla 0033. (4) Retirar liquidez: Valor de retirada − Valor de entrada = ganancia o pérdida patrimonial → casilla 1800.",
+   tips:["Documenta el valor en euros al entrar al pool — es tu precio de adquisición","Los LP tokens son solo un recibo, no tributan al recibirlos","Las comisiones (fees) acumuladas tributan cuando las cobras o retiras","La pérdida impermanente se materializa fiscalmente al retirar la liquidez","Usa herramientas como DeBank o Zerion para rastrear tu historial de LP"]},
+
+  {icon:"🏦",title:"Lending y Borrowing (Préstamos DeFi)",cas:"0033/1800",
+   body:"LENDING (prestas): Depositas cripto en Aave, Compound… y cobras intereses periódicamente. Los intereses son Rendimiento del Capital Mobiliario → base del ahorro (19-30%), casilla 0033. BORROWING (pides prestado): Dejas colateral y recibes un préstamo. El préstamo en sí NO tributa. PERO si el colateral baja de valor y te liquidan (venta forzosa), esa liquidación SÍ tributa como ganancia o pérdida patrimonial en la casilla 1800. Muchos usuarios no lo saben y no lo declaran — es uno de los errores más comunes.",
+   tips:["El préstamo en sí no tributa — solo los intereses que cobras o la liquidación","Liquidación = venta forzosa de tu colateral. Hacienda lo trata como una venta","Si te liquidan con pérdida, puedes compensarla — ¡documéntalo!","Consulta el historial de liquidaciones en Aave o DeBank","Los intereses del borrowing (lo que pagas) NO son deducibles en IRPF"]},
+
+  {icon:"↔️",title:"Envíos entre wallets — ¿Cuándo tributa?",cas:"1800/—",
+   body:"ENTRE TUS PROPIAS WALLETS: Mover BTC de Binance a tu Ledger, o de MetaMask a Phantom, NO genera hecho imponible. No tributa. Pero documenta siempre estas operaciones para mantener la trazabilidad. A UN AMIGO O FAMILIAR: Tú tributas como si lo vendieras al valor de mercado en ese momento (ganancia o pérdida patrimonial → casilla 1800). Tu amigo/familiar tributa por el Impuesto de Sucesiones y Donaciones, pero no en el IRPF. Recomendación del webinar TaxDown×Binance: documenta SIEMPRE estas operaciones.",
+   tips:["Propias wallets: guarda siempre el txHash como prueba que es tuyo","Envío a otro: calcula la ganancia como si fuera una venta al precio de mercado","El receptor tributa en Sucesiones y Donaciones según la comunidad autónoma","Las gas fees de la transferencia son deducibles como coste de la operación","Usar un tracker (Koinly, CoinTracking) facilita enormemente esta documentación"]},
+
   {icon:"🎁",title:"Casilla 1626 — Airdrops y Hardforks",cas:"1626",
-   body:"Los airdrops son ganancias patrimoniales NO derivadas de transmisión (consultas DGT V1948-21 y V0648-24). Esto es importante porque NO se pueden compensar con las pérdidas de la casilla 1800. Se declaran al valor de mercado en el momento de recepción. Si el token no tiene precio de mercado real en ese momento, puede declararse a 0€.",
-   tips:["Airdrops de tokens sin mercado = 0€ de ganancia declarable","Guarda fecha, cantidad y cotización de cada airdrop","No se compensan con pérdidas de transmisión (casilla 1800)","Los tokens de hardfork (ej. BCH al tener BTC) también van aquí"]},
-  {icon:"🌍",title:"Modelo 721 — Cripto en el Extranjero",cas:"M.721",
-   body:"El Modelo 721 es obligatorio si el 31 de diciembre tienes más de 50.000€ en criptomonedas custodiadas en exchanges o plataformas fuera de España. Es solo informativo — no pagas impuestos adicionales con él. El plazo es de enero a marzo del año siguiente. La sanción por no presentarlo puede ser de hasta 5.000€ por dato omitido, con un mínimo de 10.000€.",
-   tips:["Binance, Coinbase, Kraken, Bybit son exchanges extranjeros","Bit2Me tiene sede en España — no requiere 721","Tus propias wallets (cold/hot wallet) NO requieren 721","Plazo: del 1 de enero al 31 de marzo del año siguiente"]},
-  {icon:"⚖️",title:"Compensación de Pérdidas — Estrategia Legal",cas:"Comp.",
-   body:"La compensación de pérdidas es la herramienta más poderosa para optimizar tu fiscalidad de forma 100% legal. Las pérdidas patrimoniales de transmisión (casilla 1800) se compensan con ganancias del mismo ejercicio o de los 4 años siguientes. Regla anti-elusión: si vendes con pérdida y recompras el mismo activo en los 2 meses siguientes, no puedes aplicar esa pérdida.",
-   tips:["Puedes vender en pérdida en diciembre y recomprar en febrero — 100% legal","Declara siempre las pérdidas aunque no seas obligado — las 'activas' para futuros años","Lleva un Excel con tus pérdidas pendientes de compensar por ejercicio","La regla de los 2 meses se aplica al mismo tipo de cripto"]},
+   body:"Los airdrops son ganancias patrimoniales NO derivadas de transmisión (consultas DGT V1948-21 y V0648-24). Esto es importante porque NO se pueden compensar con las pérdidas de la casilla 1800. Se declaran al valor de mercado en el momento de recepción. Si el token no tiene precio de mercado real en ese momento, puede declararse a 0€. Al vender el token airdropeado, la diferencia entre el precio de venta y el valor declarado al recibirlo va a casilla 1800.",
+   tips:["Airdrops de tokens sin mercado = 0€ de ganancia declarable","Al vender: ganancia = precio venta − valor del airdrop. Método FIFO","No se compensan con pérdidas de transmisión (casilla 1800)","Los tokens de hardfork (ej. BCH al tener BTC) también van aquí","Launchpool y Megadrop de Binance: los tokens recibidos van aquí"]},
+
+  {icon:"🌍",title:"Modelo 721 — Cuándo aplica y cuándo NO",cas:"M.721",
+   body:"El Modelo 721 es obligatorio si el 31 de diciembre tienes más de 50.000€ en criptomonedas custodiadas en exchanges o plataformas FUERA de España. Es solo informativo — no pagas impuestos adicionales. Plazo: enero-marzo. IMPORTANTE (aclarado en webinar TaxDown×Binance feb 2026): Cripto en DeFi (self-custody, tus propias wallets) → NO aplica el 721. Cripto en Binance → NO aplica (Binance ya presenta los Modelos 172 y 173 a Hacienda). La sanción por no presentarlo cuando es obligatorio puede superar los 10.000€.",
+   tips:["Exchanges extranjeros (Coinbase, Kraken, Bybit…): SÍ aplica si >50.000€ a 31/dic","Cripto en DeFi / self-custody: NO aplica — no está en custodia de terceros","Cripto en Binance España: NO aplica — ellos reportan con Modelos 172/173","Bit2Me tiene sede en España — no requiere 721","Plazo: del 1 de enero al 31 de marzo del año siguiente"]},
+
+  {icon:"⚖️",title:"Compensación de Pérdidas — Las 3 reglas",cas:"Comp.",
+   body:"La compensación de pérdidas es la herramienta más poderosa para optimizar tu fiscalidad. REGLA 1 — Compensación directa: pérdidas y ganancias de la misma base (1800 vs 1800) se anulan al 100%. Ej: pérdida en DeFi compensa ganancia en acciones. REGLA 2 — Compensación cruzada 25%: si te siguen quedando pérdidas de transmisión, puedes compensar hasta el 25% de los rendimientos del capital mobiliario (staking, lending → casilla 0033). REGLA 3 — Los 4 años: si queda pérdida neta, tienes 4 años para compensarla con futuras ganancias. Regla anti-elusión: si vendes con pérdida y recompras el mismo activo en los 2 meses siguientes, no puedes aplicar esa pérdida ese año.",
+   tips:["Pérdidas 1800 compensan ganancias 1800 al 100% — empezar siempre por aquí","Con el remanente: puedes compensar hasta el 25% de tus rendimientos de staking (0033)","Declara siempre las pérdidas aunque no seas obligado — las 'activas' para futuros años","Regla 2 meses: vende en pérdida en octubre, recompra en enero — 100% legal","Liquidaciones de borrowing con pérdida: también compensables — ¡documenta!"]},
+
+  {icon:"🔍",title:"Trazabilidad — Tu escudo ante Hacienda",cas:"Traz.",
+   body:"La trazabilidad es TU prueba. Sin ella, Hacienda asume coste de adquisición = 0€. Ejemplo real: compraste BTC a 1.000€, lo vendes a 4.000€. CON trazabilidad (demuestras la compra) → ganancia real = 3.000€. SIN trazabilidad → Hacienda asume que lo compraste a 0€ → ganancia 'ficticia' = 4.000€ — pagas impuestos por dinero que nunca ganaste. CHAINALYSIS: Hacienda está invirtiendo activamente en herramientas de análisis blockchain como Chainalysis, que permiten rastrear operaciones on-chain directamente en la blockchain. Que no tengas obligación de reportar DeFi no significa que no te puedan encontrar.",
+   tips:["Guarda los CSVs de TODOS tus exchanges (Binance, Coinbase, Kraken…) de TODOS los años","Para DeFi: exporta el historial de transacciones de tu wallet (Etherscan, BSCScan…)","Herramientas de trazabilidad: Koinly, CoinTracking, TaxDown — conectan wallets automáticamente","Documenta SIEMPRE los envíos entre tus propias wallets con el txHash","La blockchain es pública y permanente — Hacienda puede rastrear on-chain con Chainalysis"]},
+
   {icon:"⛏️",title:"Minería — Actividad Económica",cas:"M.130",
    body:"La minería profesional o habitual tributa en la BASE GENERAL del IRPF (tipos entre 19% y 47%), no en la base del ahorro. Implica darse de alta como autónomo y presentar el Modelo 130 trimestralmente, adelantando el 20% de los beneficios cada trimestre. Gastos deducibles: hardware, electricidad, internet, software, amortizaciones del equipo.",
    tips:["Minería ocasional/no habitual puede no ser actividad económica — consulta asesor","El IVA de la minería está exento — pero esto también impide deducir el IVA soportado","Guarda TODAS las facturas de electricidad y hardware","La posterior venta de los criptos minados genera G/P patrimonial en casilla 1800"]},
@@ -491,14 +517,31 @@ function renderHome(sm) {
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
           <span style="font-size:24px">🌍</span>
           <div>
-            <div style="font-weight:700;font-size:14px;color:var(--blue)">Modelo 721 — Cripto en el extranjero</div>
-            <div style="font-size:11px;color:var(--mut)">Obligatorio si superas 50.000€</div>
+            <div style="font-weight:700;font-size:14px;color:var(--blue)">Modelo 721 — Cuándo aplica (y cuándo NO)</div>
+            <div style="font-size:11px;color:var(--mut)">Obligatorio si superas 50.000€ en custodia ajena</div>
           </div>
         </div>
-        <p style="font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:10px">
-          Si el <strong style="color:var(--text)">31 de diciembre</strong> tenías más de 50.000€ en exchanges extranjeros (Binance, Coinbase, Kraken…), debes presentar el Modelo 721 antes del <strong style="color:var(--text)">31 de marzo</strong>. Las sanciones por no presentarlo pueden superar los 10.000€.
+        <p style="font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:8px">
+          Exchanges extranjeros (Coinbase, Kraken, Bybit…): <strong style="color:var(--blue)">SÍ aplica</strong> si superas 50.000€ a 31/dic.<br>
+          Cripto en <strong style="color:var(--text)">DeFi / self-custody</strong>: <strong style="color:var(--green)">NO aplica</strong> — no está en custodia de terceros.<br>
+          Cripto en <strong style="color:var(--text)">Binance</strong>: <strong style="color:var(--green)">NO aplica</strong> — ya reportan con Modelos 172/173.
         </p>
-        <div style="font-size:11px;font-weight:600;color:var(--blue)">Plazo: 1 enero – 31 marzo</div>
+        <div style="font-size:11px;font-weight:600;color:var(--blue)">Plazo: 1 enero – 31 marzo · Sanción mínima: 10.000€</div>
+      </div>
+
+      <!-- Trazabilidad / Chainalysis -->
+      <div style="background:#1a0f00;border:1.5px solid var(--orange);border-radius:12px;padding:20px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:24px">🔍</span>
+          <div>
+            <div style="font-weight:700;font-size:14px;color:var(--orange)">Hacienda usa Chainalysis</div>
+            <div style="font-size:11px;color:var(--mut)">La blockchain es pública y permanente</div>
+          </div>
+        </div>
+        <p style="font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:8px">
+          Hacienda invierte activamente en herramientas como <strong style="color:var(--text)">Chainalysis</strong> para rastrear operaciones on-chain. Sin trazabilidad de tu coste de adquisición, Hacienda asume precio de compra = <strong style="color:var(--red)">0€</strong> y tributas por el 100% del valor de venta.
+        </p>
+        <div style="font-size:11px;font-weight:600;color:var(--orange)">Guarda CSVs · txHash · historial de wallets</div>
       </div>
 
       <!-- Tax Loss Harvesting -->
@@ -554,11 +597,11 @@ function renderHome(sm) {
     <div style="font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px">🛡️ ¿Qué puedo hacer con Angel Tax?</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:28px">
       ${[
-        {icon:"➕", t:"Añadir operaciones",   d:"Compraventas, staking, airdrops, NFTs, DeFi", tab:"add"},
+        {icon:"➕", t:"Añadir operaciones",   d:"Compraventas, staking, lending, LP pools, liquidaciones, envíos…", tab:"add"},
         {icon:"📥", t:"Importar CSV",          d:"Binance, Coinbase, Bit2Me — importación directa", tab:"import"},
         {icon:"🤖", t:"Analizar con IA",       d:"Sube cualquier PDF o Excel y la IA extrae tus datos", tab:"analyze"},
         {icon:"📄", t:"Generar informe",       d:"PDF profesional listo para tu asesor fiscal", tab:"report"},
-        {icon:"📚", t:"Guía fiscal completa",  d:"Casillas, estrategias, Modelo 721, DeFi", tab:"guide"},
+        {icon:"📚", t:"Guía fiscal completa",  d:"DeFi, LP pools, lending, Chainalysis, Modelo 721, compensaciones", tab:"guide"},
       ].map(f=>`
         <div onclick="goTab('${f.tab}')" style="background:var(--sur2);border:1px solid var(--bor);border-radius:10px;padding:16px;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--bor2)'" onmouseout="this.style.borderColor='var(--bor)'">
           <div style="font-size:22px;margin-bottom:8px">${f.icon}</div>
@@ -710,6 +753,22 @@ function renderAdd() {
     </div>
 
     ${!calcResult?`<button class="btn-primary" onclick="calculate()">🧮 Calcular impacto fiscal</button>`:`
+      ${calcResult.noTax ? `
+      <div class="result-box" style="border-color:var(--green)">
+        <div style="text-align:center;padding:12px 0">
+          <div style="font-size:32px;margin-bottom:8px">✅</div>
+          <div style="font-weight:700;color:var(--green);font-size:15px">Esta operación NO tributa</div>
+          <div style="font-size:12px;color:var(--dim);margin-top:6px;line-height:1.6">
+            Mover cripto entre tus propias wallets no genera hecho imponible.<br>
+            <strong style="color:var(--text)">Guarda el txHash como prueba</strong> de que la wallet de destino es tuya.
+          </div>
+        </div>
+      </div>
+      <div class="alert alert-green">💡 <strong>Trazabilidad:</strong> Documenta este movimiento con el txHash para mantener la cadena de custodia ante posibles requerimientos de Hacienda.</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <button class="btn-sec" onclick="clearResult()">✏️ Editar datos</button>
+      </div>
+      ` : `
       <div class="result-box">
         <div class="result-row">
           <span class="c-dim">Casilla IRPF</span>
@@ -730,6 +789,7 @@ function renderAdd() {
         <button class="btn-primary" onclick="addOperation()">✅ Añadir a mi declaración</button>
         <button class="btn-sec" onclick="clearResult()">✏️ Editar datos</button>
       </div>
+      `}
     `}
   </div>`;
 }
@@ -2020,15 +2080,28 @@ function saveFormData() {
 
 function calculate() {
   saveFormData();
+  const op    = OPS.find(o=>o.id===currentOpType);
   const acq   = parseFloat(formData.acq)   || 0;
   const trans = parseFloat(formData.trans)  || 0;
   const fees  = parseFloat(formData.fees)   || 0;
-  const isT   = ["compraventa","permuta","pago","nft"].includes(currentOpType);
-  const gain  = isT ? trans - acq - fees : trans;
-  const cas   = currentOpType==="staking"||currentOpType==="defi" ? "0033"
-              : currentOpType==="airdrop" ? "1626"
-              : currentOpType==="mineria" ? "Act.Económica"
-              : "1800";
+
+  // Envío entre propias wallets → no tributa
+  if (op?.noTax) {
+    calcResult = { gain: 0, cas: "—", tax: 0, noTax: true };
+    render();
+    return;
+  }
+
+  // Operaciones con G/P patrimonial: trans - acq - fees
+  const isGP = ["compraventa","permuta","pago","nft","lp_retiro","liquidacion","envio_regalo"].includes(currentOpType);
+  const gain  = isGP ? trans - acq - fees : trans;
+
+  // Casilla según tipo
+  const cas = (["staking","lending","lp_fees"].includes(currentOpType)) ? "0033"
+            : currentOpType==="airdrop"   ? "1626"
+            : currentOpType==="mineria"   ? "Act.Económica"
+            : "1800";
+
   calcResult = { gain, cas, tax: calcTax(Math.max(gain,0)) };
   render();
 }
