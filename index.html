@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Angel Tax — Fiscalidad Cripto España</title>
+  <meta name="description" content="La herramienta definitiva para la fiscalidad de criptomonedas en España. Open source, gratuita y 100% privada." />
+  <meta property="og:title" content="Angel Tax — Fiscalidad Cripto España" />
+  <meta property="og:description" content="Calcula tu IRPF por criptomonedas, sabe exactamente qué casilla rellenar, todo sin salir de tu navegador." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
+  <style>
+    body { margin: 0; background: #070a14; }
+    #loading {
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; background: #070a14;
+      font-family: system-ui; color: #e8c04a; gap: 16px;
+    }
+    #loading .spinner {
+      width: 40px; height: 40px; border: 3px solid #252d4a;
+      border-top-color: #e8c04a; border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div id="loading">
+      <div class="spinner"></div>
+      <div style="font-size:14px;letter-spacing:2px;text-transform:uppercase">Cargando Angel Tax...</div>
+    </div>
+  </div>
+
+  <!-- React + ReactDOM desde CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel para transformar JSX en el navegador -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel" data-presets="react">
+
+const { useState, useReducer, useCallback, useMemo } = React;
+
+const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:wght@300;400;500;600&display=swap');`;
+
+const BRACKETS = [
+  { max: 6000,    rate: 0.19, label: "Hasta 6.000 €" },
+  { max: 50000,   rate: 0.21, label: "6.000 € – 50.000 €" },
+  { max: 200000,  rate: 0.23, label: "50.000 € – 200.000 €" },
+  { max: 300000,  rate: 0.27, label: "200.000 € – 300.000 €" },
+  { max: Infinity,rate: 0.30, label: "Más de 300.000 €" },
+];
+
+function calcTax(gain) {
+  if (gain <= 0) return 0;
+  let tax = 0, remaining = gain, prev = 0;
+  for (const b of BRACKETS) {
+    const chunk = b.max === Infinity ? remaining : Math.min(b.max - prev, remaining);
+    if (chunk <= 0) break;
+    tax += chunk * b.rate;
+    remaining -= chunk;
+    prev = b.max;
+    if (remaining <= 0) break;
+  }
+  return tax;
+}
+
+function fmt(v) {
+  if (v === null || v === undefined || isNaN(v)) return "—";
+  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(v);
+}
+
+function genId() { return Math.random().toString(36).substr(2, 9); }
+
+const OPS = [
+  { id:"compraventa", icon:"💱", name:"Compraventa",    desc:"Venta de cripto por € o fiat",           casilla:"1800",           base:"ahorro" },
+  { id:"permuta",     icon:"🔄", name:"Permuta (Swap)", desc:"Intercambio de una cripto por otra",      casilla:"1800",           base:"ahorro" },
+  { id:"pago",        icon:"🛒", name:"Pago con cripto",desc:"Usaste cripto para comprar algo",         casilla:"1800",           base:"ahorro" },
+  { id:"staking",     icon:"📈", name:"Staking/Lending",desc:"Recompensas por bloquear criptos",        casilla:"0033",           base:"ahorro" },
+  { id:"airdrop",     icon:"🎁", name:"Airdrop/Hardfork",desc:"Criptos recibidas sin contraprestación", casilla:"1626",           base:"ahorro" },
+  { id:"mineria",     icon:"⛏️", name:"Minería",        desc:"Ingresos por minar criptomonedas",        casilla:"Act. Económica", base:"general"},
+  { id:"nft",         icon:"🖼️", name:"NFT",            desc:"Compraventa o royalties de NFTs",         casilla:"1800",           base:"ahorro" },
+  { id:"defi",        icon:"🏦", name:"DeFi/Liquidity", desc:"Yield farming, liquidity pools",          casilla:"0033/1800",      base:"ahorro" },
+];
+
+const GUIDES = [
+  { icon:"📋", title:"Casilla 1800 — Compraventas y Permutas", cas:"1800",
+    body:"La casilla principal. Aquí va toda venta o intercambio de cripto. Ganancia = Valor transmisión − (Valor adquisición + Comisiones). Método FIFO obligatorio. La permuta BTC→ETH también tributa aunque no conviertas a euros. El importe se integra en la base del ahorro del IRPF y tributa según los tramos vigentes.",
+    tips:["Guarda todos los CSVs de tus exchanges","Las comisiones reducen la ganancia","Las pérdidas compensan ganancias hasta 4 años","El holding (comprar y no vender) NO tributa"] },
+  { icon:"💰", title:"Casilla 0033 — Staking y Lending", cas:"0033",
+    body:"Las recompensas de staking tributan como Rendimiento del Capital Mobiliario (DGT V1766-22). Tributa en el momento de recibir las recompensas, al valor de mercado en ese momento. Si después vendes esas recompensas, esa plusvalía va a la casilla 1800.",
+    tips:["Documenta el valor de mercado exacto al recibir cada recompensa","Los exchanges tienen informes de staking descargables","Nexo, Celsius, intereses de plataformas: también aquí"] },
+  { icon:"🎁", title:"Casilla 1626 — Airdrops y Hardforks", cas:"1626",
+    body:"Los airdrops son ganancias patrimoniales NO derivadas de transmisión (DGT V1948-21, V0648-24). Se declaran al valor de mercado en el momento de recepción. Si el token no tiene precio de mercado real, puede declararse a 0€. Atención: no se pueden compensar con pérdidas de la casilla 1800.",
+    tips:["Airdrops sin valor de mercado = 0€","Guarda fecha y cantidad de cada airdrop","No se compensan con pérdidas de la casilla 1800"] },
+  { icon:"🌍", title:"Modelo 721 — Cripto en el Extranjero", cas:"721",
+    body:"Obligatorio si el 31 de diciembre tienes más de 50.000€ en exchanges extranjeros (Binance, Coinbase, Kraken...). Es solo informativo — no pagas impuestos adicionales con él. Plazo: enero–marzo del año siguiente. Sanción por no presentar: hasta 5.000€ por dato omitido.",
+    tips:["Binance, Coinbase, Kraken son exchanges extranjeros","Bit2Me es español — no requiere 721","Cold wallets propias NO requieren 721","Plazo: 1 enero al 31 de marzo del año siguiente"] },
+  { icon:"⚖️", title:"Compensación de Pérdidas", cas:"Comp.",
+    body:"Las pérdidas patrimoniales (1800) se compensan con ganancias del mismo ejercicio o de los 4 años siguientes. Regla anti-elusión: si recompras el mismo activo en los 2 meses siguientes a vender con pérdida, no puedes aplicar la compensación.",
+    tips:["Vender en pérdida en diciembre y recomprar en febrero es 100% legal","Declara las pérdidas aunque no seas obligado — las activas para futuros años","Lleva registro histórico de pérdidas pendientes de compensar"] },
+  { icon:"⛏️", title:"Minería — Actividad Económica", cas:"130",
+    body:"La minería profesional tributa en base general del IRPF (hasta 47%), no en base del ahorro. Debes darte de alta como autónomo y presentar el Modelo 130 trimestral (adelanto del 20% de beneficios). Gastos deducibles: hardware, electricidad, internet, amortizaciones.",
+    tips:["Minería ocasional puede no considerarse actividad económica","Guarda todas las facturas de electricidad y hardware","El IVA de la minería está exento — no puedes deducir el IVA de tus compras","Consulta con asesor para determinar si eres actividad económica"] },
+];
+
+function reducer(state, action) {
+  switch (action.type) {
+    case "ADD":  return { ...state, ops: [...state.ops, { id: genId(), ...action.payload }] };
+    case "DEL":  return { ...state, ops: state.ops.filter(o => o.id !== action.id) };
+    case "YEAR": return { ...state, year: action.year };
+    default: return state;
+  }
+}
+
+// ── Styles ──
+const S = {
+  app:    { maxWidth:1100, margin:"0 auto", padding:"0 20px 80px", fontFamily:"'DM Sans',system-ui,sans-serif" },
+  header: { padding:"28px 0 20px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #252d4a", marginBottom:28 },
+  badge:  { background:"#0e3324", border:"1px solid #3dba7a", color:"#3dba7a", padding:"4px 12px", borderRadius:20, fontSize:11, fontWeight:600, letterSpacing:1 },
+  nav:    { display:"flex", gap:4, marginBottom:28, background:"#0e1220", padding:6, borderRadius:12, border:"1px solid #252d4a", overflowX:"auto" },
+  navBtn: a => ({ flex:1, minWidth:"fit-content", padding:"9px 16px", borderRadius:8, border:a?"1px solid #2e3a5e":"none", background:a?"#1e2540":"transparent", color:a?"#e8c04a":"#7a85a8", fontFamily:"'DM Sans',system-ui", fontSize:13, fontWeight:500, cursor:"pointer", whiteSpace:"nowrap", transition:"all .15s" }),
+  card:   { background:"#0e1220", border:"1px solid #252d4a", borderRadius:12, padding:28, marginBottom:20 },
+  stat:   { background:"#0e1220", border:"1px solid #252d4a", borderRadius:12, padding:"18px 20px" },
+  lbl:    { display:"block", fontSize:12, fontWeight:600, color:"#7a85a8", textTransform:"uppercase", letterSpacing:.8, marginBottom:8 },
+  inp:    { width:"100%", background:"#161c2e", border:"1px solid #252d4a", borderRadius:8, color:"#dde1f0", padding:"11px 14px", fontFamily:"'DM Sans',system-ui", fontSize:14, outline:"none", boxSizing:"border-box" },
+  btnP:   { padding:"11px 22px", borderRadius:8, border:"none", background:"linear-gradient(135deg,#c9a227,#e8c04a)", color:"#0a0c14", fontFamily:"'DM Sans',system-ui", fontSize:14, fontWeight:700, cursor:"pointer" },
+  btnS:   { padding:"11px 22px", borderRadius:8, border:"1px solid #2e3a5e", background:"#161c2e", color:"#dde1f0", fontFamily:"'DM Sans',system-ui", fontSize:14, fontWeight:600, cursor:"pointer" },
+  alert:  c => ({ padding:"14px 18px", borderRadius:12, borderLeft:"3px solid "+c, marginBottom:16, fontSize:13, lineHeight:1.5, background:{
+    "#4d82e8":"#0f1f45","#e8943a":"#2a1a08","#3dba7a":"#0e3324","#e05252":"#3b1212","#e8c04a":"#1a1408"
+  }[c]||"#1a1408", color:"#dde1f0" }),
+  cas:    g => ({ display:"inline-block", background:g==="gold"?"#1a1408":"#0f1f45", color:g==="gold"?"#e8c04a":"#4d82e8", border:"1px solid "+(g==="gold"?"#7a6115":"#4d82e8"), borderRadius:6, padding:"1px 8px", fontSize:11, fontWeight:700, fontFamily:"monospace" }),
+};
+
+function Casilla({ gold, children }) {
+  return <span style={S.cas(gold?"gold":"blue")}>{children}</span>;
+}
+
+function Alert({ color="#4d82e8", children }) {
+  return <div style={S.alert(color)}>{children}</div>;
+}
+
+export default function AngelTax() {
+  const [state, dispatch] = useReducer(reducer, { ops:[], year:"2024" });
+  const [tab,       setTab]       = useState("home");
+  const [opType,    setOpType]    = useState(null);
+  const [form,      setForm]      = useState({});
+  const [result,    setResult]    = useState(null);
+  const [openGuide, setOpenGuide] = useState(null);
+
+  const sm = useMemo(() => {
+    const gains   = state.ops.filter(o=>o.casilla==="1800"&&o.gain>0 ).reduce((s,o)=>s+o.gain,0);
+    const losses  = state.ops.filter(o=>o.casilla==="1800"&&o.gain<0 ).reduce((s,o)=>s+o.gain,0);
+    const staking = state.ops.filter(o=>o.casilla==="0033"           ).reduce((s,o)=>s+o.gain,0);
+    const airdrops= state.ops.filter(o=>o.casilla==="1626"           ).reduce((s,o)=>s+o.gain,0);
+    const base    = Math.max(gains+losses+staking+airdrops, 0);
+    const tax     = calcTax(base);
+    const bracket = BRACKETS.findIndex(b=>base<=b.max);
+    return { gains, losses, net:gains+losses, staking, airdrops, base, tax, bracket };
+  }, [state.ops]);
+
+  function calculate() {
+    const acq=parseFloat(form.acq)||0, trans=parseFloat(form.trans)||0, fees=parseFloat(form.fees)||0;
+    const isT = ["compraventa","permuta","pago","nft"].includes(opType);
+    const gain = isT ? trans-acq-fees : trans;
+    const cas  = ["staking","defi"].includes(opType)?"0033":opType==="airdrop"?"1626":opType==="mineria"?"Act. Económica":"1800";
+    setResult({ gain, cas, tax:calcTax(Math.max(gain,0)), isT });
+  }
+
+  function addOp() {
+    const op = OPS.find(o=>o.id===opType);
+    dispatch({ type:"ADD", payload:{
+      type:opType, typeName:op.name, asset:form.asset||"—", date:form.date||"—",
+      acq:parseFloat(form.acq)||0, trans:parseFloat(form.trans)||0, fees:parseFloat(form.fees)||0,
+      gain:result.gain, casilla:result.cas, notes:form.notes||""
+    }});
+    setTab("home"); setOpType(null); setForm({}); setResult(null);
+  }
+
+  function downloadReport() {
+    const lines = [
+      "ANGEL TAX — INFORME FISCAL CRIPTO "+state.year,
+      "Generado: "+new Date().toLocaleDateString("es-ES"),
+      "=".repeat(50),"",
+      "BASE IMPONIBLE TOTAL: "+fmt(sm.base),
+      "IMPUESTO ESTIMADO:    "+fmt(sm.tax),
+      "Ganancias (1800):     "+fmt(sm.gains),
+      "Pérdidas  (1800):     "+fmt(sm.losses),
+      "Staking   (0033):     "+fmt(sm.staking),
+      "Airdrops  (1626):     "+fmt(sm.airdrops),"",
+      "-".repeat(50),"OPERACIONES DETALLADAS:","-".repeat(50),
+      ...state.ops.map(o=>`${o.date} | ${o.typeName} | ${o.asset} | ${o.gain>=0?"+":""}${fmt(o.gain)} | Casilla ${o.casilla}`),
+      "","DISCLAIMER: Herramienta orientativa. Consulta un asesor fiscal certificado.",
+      "Open Source: https://github.com/kaizenbnb/Angel-TAX"
+    ];
+    const blob = new Blob([lines.join("\n")],{type:"text/plain;charset=utf-8"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `AngelTax_Informe_${state.year}.txt`;
+    a.click();
+  }
+
+  const tabs = [
+    {id:"home",   icon:"🏠", label:"Inicio"},
+    {id:"add",    icon:"➕", label:"Nueva Operación"},
+    {id:"report", icon:"📄", label:"Mi Informe"},
+    {id:"guide",  icon:"📚", label:"Guía Fiscal"},
+  ];
+
+  function goTab(id) { setTab(id); setOpType(null); setResult(null); }
+
+  return (
+    <>
+      <style>{FONTS + `
+        * { box-sizing:border-box; margin:0; padding:0; }
+        :root { --bg:#070a14; --sur:#0e1220; --sur2:#161c2e; --bor:#252d4a; --bor2:#2e3a5e;
+          --gold:#c9a227; --gold2:#e8c04a; --gg:#c9a22730; --text:#dde1f0; --dim:#7a85a8;
+          --mut:#3d4a6e; --green:#3dba7a; --red:#e05252; --blue:#4d82e8; }
+        body { font-family:'DM Sans',system-ui; background:var(--bg); color:var(--text); }
+        input:focus,select:focus { border-color:var(--gold)!important; box-shadow:0 0 0 2px var(--gg)!important; }
+        .op-card:hover { transform:translateY(-2px); box-shadow:0 4px 20px #00000050; }
+        .nb:hover { background:#161c2e!important; color:#dde1f0!important; }
+        .tr:hover td { background:#161c2e; }
+        th { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--mut); padding:8px 12px; border-bottom:1px solid var(--bor); text-align:left; }
+        td { padding:11px 12px; border-bottom:1px solid var(--bor); font-size:13px; }
+        tr:last-child td { border-bottom:none; }
+        table { width:100%; border-collapse:collapse; }
+        .br-active td { background:#1a1408; color:var(--gold2); }
+        .guide-body p { font-size:13px; color:var(--dim); line-height:1.6; margin:12px 0; }
+        .guide-body ul { padding-left:18px; font-size:13px; color:var(--dim); line-height:1.8; }
+        @media(max-width:640px){.fg2{grid-template-columns:1fr!important}.fg3{grid-template-columns:1fr!important}.sg{grid-template-columns:1fr 1fr!important}}
+      `}</style>
+
+      <div style={S.app}>
+
+        {/* HEADER */}
+        <div style={S.header}>
+          <div style={{display:"flex",alignItems:"center",gap:14}}>
+            <div style={{width:44,height:44,background:"linear-gradient(135deg,#e8c04a,#c9a227)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,boxShadow:"0 0 20px #c9a22730"}}>🛡️</div>
+            <div>
+              <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:22,color:"#e8c04a",margin:0,lineHeight:1.2}}>Angel Tax</h1>
+              <div style={{fontSize:11,color:"#7a85a8",letterSpacing:2,textTransform:"uppercase"}}>Fiscalidad Cripto · España</div>
+            </div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <select style={{...S.inp,width:"auto",padding:"5px 10px",fontSize:12}} value={state.year} onChange={e=>dispatch({type:"YEAR",year:e.target.value})}>
+              <option>2024</option><option>2023</option><option>2022</option>
+            </select>
+            <div style={S.badge}>🔒 100% Local</div>
+          </div>
+        </div>
+
+        {/* NAV */}
+        <div style={S.nav}>
+          {tabs.map(t=>(
+            <button key={t.id} className="nb" style={S.navBtn(tab===t.id)} onClick={()=>goTab(t.id)}>
+              {t.icon} {t.label}
+              {t.id==="home"&&state.ops.length>0&&
+                <span style={{background:"#c9a227",color:"#0a0c14",borderRadius:10,padding:"0 6px",fontSize:10,fontWeight:700,marginLeft:4}}>{state.ops.length}</span>
+              }
+            </button>
+          ))}
+        </div>
+
+        {/* ── HOME ── */}
+        {tab==="home" && (state.ops.length===0
+          ? <div style={{textAlign:"center",padding:"60px 20px"}}>
+              <div style={{fontSize:72,marginBottom:16,opacity:.25}}>🛡️</div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:26,color:"#7a85a8",marginBottom:8}}>Bienvenido a Angel Tax</div>
+              <div style={{fontSize:14,color:"#3d4a6e",maxWidth:380,margin:"0 auto 28px",lineHeight:1.7}}>Tu asesor fiscal de criptomonedas en España. Añade tus operaciones y te decimos exactamente qué casillas rellenar en la declaración de la renta — gratis, sin registro, sin servidores.</div>
+              <Alert color="#e8c04a">🔒 <strong>Privacidad total:</strong> Todos tus datos se procesan únicamente en tu navegador. Ningún dato sale de tu dispositivo jamás.</Alert>
+              <button style={S.btnP} onClick={()=>goTab("add")}>➕ Añadir primera operación</button>
+            </div>
+          : <div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(155px,1fr))",gap:14,marginBottom:28}} className="sg">
+                {[
+                  {l:"Base imponible",  v:fmt(sm.base),           c:"#e8c04a", s:"Base del ahorro"},
+                  {l:"Impuesto est.",   v:fmt(sm.tax),            c:sm.tax>0?"#e05252":"#3dba7a", s:"Cuota IRPF cripto"},
+                  {l:"Ganancias 1800",  v:fmt(sm.gains),          c:"#3dba7a", s:"Con beneficio"},
+                  {l:"Pérdidas 1800",   v:fmt(Math.abs(sm.losses)),c:"#e05252", s:"Compensables 4 años"},
+                  {l:"Staking 0033",    v:fmt(sm.staking),        c:"#4d82e8", s:"Capital mobiliario"},
+                  {l:"Operaciones",     v:state.ops.length,       c:"#e8c04a", s:"Total introducidas"},
+                ].map((x,i)=>(
+                  <div key={i} style={S.stat}>
+                    <div style={{fontSize:11,color:"#7a85a8",fontWeight:600,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>{x.l}</div>
+                    <div style={{fontSize:22,fontWeight:700,fontFamily:"'Playfair Display',serif",color:x.c}}>{x.v}</div>
+                    <div style={{fontSize:11,color:"#3d4a6e",marginTop:3}}>{x.s}</div>
+                  </div>
+                ))}
+              </div>
+
+              {sm.base>40000&&<Alert color={sm.base>50000?"#e05252":"#e8943a"}>
+                {sm.base>50000?"🚨":"⚠️"} <strong>Modelo 721:</strong> {sm.base>50000?"Tus operaciones superan los 50.000€. Si mantienes ese saldo en exchanges extranjeros a 31/12, debes presentar el Modelo 721 antes del 31 de marzo.":"Acercándote al umbral de 50.000€ para el Modelo 721. Revisa el saldo a 31 de diciembre."}
+              </Alert>}
+
+              <div style={S.card}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:17,marginBottom:16}}>Tramos IRPF Base del Ahorro {state.year}</div>
+                <table>
+                  <thead><tr><th>Tramo</th><th>Tipo</th><th>Base aplicable</th><th>Cuota tramo</th></tr></thead>
+                  <tbody>
+                    {BRACKETS.map((b,i)=>{
+                      const prev  = i===0?0:BRACKETS[i-1].max;
+                      const chunk = Math.max(0,Math.min(sm.base-prev, b.max===Infinity?Math.max(0,sm.base-prev):b.max-prev));
+                      return(
+                        <tr key={i} className={i===sm.bracket&&sm.base>0?"br-active tr":"tr"}>
+                          <td>{b.label}</td>
+                          <td style={{fontWeight:700}}>{(b.rate*100).toFixed(0)}%</td>
+                          <td>{chunk>0?fmt(chunk):"—"}</td>
+                          <td>{chunk>0?fmt(chunk*b.rate):"—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={S.card}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:17,marginBottom:16}}>Operaciones — Ejercicio {state.year}</div>
+                <div style={{overflowX:"auto"}}>
+                  <table>
+                    <thead><tr><th>Fecha</th><th>Tipo</th><th>Activo</th><th>Adquisición</th><th>Transmisión</th><th>G/P Neta</th><th>Casilla</th><th></th></tr></thead>
+                    <tbody>
+                      {state.ops.map(op=>(
+                        <tr key={op.id} className="tr">
+                          <td style={{color:"#7a85a8",fontSize:12}}>{op.date}</td>
+                          <td><span style={{background:"#0f1f45",color:"#4d82e8",borderRadius:12,padding:"2px 10px",fontSize:11,fontWeight:600}}>{op.typeName}</span></td>
+                          <td style={{fontWeight:600}}>{op.asset}</td>
+                          <td>{["compraventa","permuta","pago","nft"].includes(op.type)?fmt(op.acq):"—"}</td>
+                          <td>{fmt(op.trans)}</td>
+                          <td style={{color:op.gain>=0?"#3dba7a":"#e05252",fontWeight:700}}>{op.gain>=0?"+":""}{fmt(op.gain)}</td>
+                          <td><Casilla>{op.casilla}</Casilla></td>
+                          <td><button style={{background:"none",border:"none",cursor:"pointer",color:"#3d4a6e",fontSize:16}} onClick={()=>dispatch({type:"DEL",id:op.id})}>🗑</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+        )}
+
+        {/* ── ADD OPERATION ── */}
+        {tab==="add" && (!opType
+          ? <div style={S.card}>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,marginBottom:4}}>¿Qué operación quieres añadir?</div>
+              <div style={{fontSize:13,color:"#7a85a8",marginBottom:24}}>Selecciona el tipo de transacción que realizaste</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(210px,1fr))",gap:14}}>
+                {OPS.map(op=>(
+                  <div key={op.id} className="op-card" style={{background:"#161c2e",border:"1.5px solid #252d4a",borderRadius:12,padding:20,cursor:"pointer",transition:"all .2s"}} onClick={()=>setOpType(op.id)}>
+                    <div style={{fontSize:28,marginBottom:10}}>{op.icon}</div>
+                    <div style={{fontWeight:600,marginBottom:4}}>{op.name}</div>
+                    <div style={{fontSize:12,color:"#7a85a8",marginBottom:12}}>{op.desc}</div>
+                    <Casilla gold={op.base==="general"}>{op.casilla}</Casilla>
+                  </div>
+                ))}
+              </div>
+            </div>
+          : <div style={S.card}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20,flexWrap:"wrap",gap:12}}>
+                <div>
+                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:18}}>
+                    {OPS.find(o=>o.id===opType)?.icon} {OPS.find(o=>o.id===opType)?.name}
+                  </div>
+                  <div style={{fontSize:13,color:"#7a85a8",marginTop:4}}>
+                    Casilla: <Casilla>{OPS.find(o=>o.id===opType)?.casilla}</Casilla>
+                  </div>
+                </div>
+                <button style={S.btnS} onClick={()=>{setOpType(null);setResult(null);setForm({});}}>← Cambiar tipo</button>
+              </div>
+
+              {opType==="permuta" && <Alert>⚠️ <strong>Permuta cripto-cripto:</strong> Aunque no conviertas a euros, Hacienda considera que vendiste el cripto entregado a precio de mercado. Tributa igual que una venta.</Alert>}
+              {opType==="staking" && <Alert>ℹ️ <strong>DGT V1766-22:</strong> Las recompensas tributan como Rendimiento del Capital Mobiliario al valor de mercado en el momento de recepción.</Alert>}
+              {opType==="airdrop" && <Alert color="#e8943a">⚠️ <strong>DGT V0648-24:</strong> Los airdrops son ganancias NO derivadas de transmisión. Si el token no tiene precio de mercado, puede declararse a 0€.</Alert>}
+              {opType==="mineria" && <Alert color="#e8943a">⚠️ <strong>Actividad Económica:</strong> Tributa en base general (hasta 47%). Debes presentar Modelo 130 trimestralmente adelantando el 20% de beneficios.</Alert>}
+
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}} className="fg2">
+                <div><label style={S.lbl}>Criptomoneda</label><input style={S.inp} placeholder="BTC, ETH, SOL..." value={form.asset||""} onChange={e=>setForm({...form,asset:e.target.value})}/></div>
+                <div><label style={S.lbl}>Fecha</label><input type="date" style={S.inp} value={form.date||""} onChange={e=>setForm({...form,date:e.target.value})}/></div>
+              </div>
+
+              {["compraventa","permuta","pago","nft"].includes(opType) && (
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginBottom:16}} className="fg3">
+                  <div><label style={S.lbl}>Valor adquisición (€)</label><input type="number" style={S.inp} placeholder="0.00" value={form.acq||""} onChange={e=>setForm({...form,acq:e.target.value})}/><div style={{fontSize:11,color:"#3d4a6e",marginTop:4}}>Precio de compra en €</div></div>
+                  <div><label style={S.lbl}>Valor transmisión (€)</label><input type="number" style={S.inp} placeholder="0.00" value={form.trans||""} onChange={e=>setForm({...form,trans:e.target.value})}/><div style={{fontSize:11,color:"#3d4a6e",marginTop:4}}>{opType==="permuta"?"Valor de mercado del cripto entregado":"Precio de venta en €"}</div></div>
+                  <div><label style={S.lbl}>Comisiones (€)</label><input type="number" style={S.inp} placeholder="0.00" value={form.fees||""} onChange={e=>setForm({...form,fees:e.target.value})}/><div style={{fontSize:11,color:"#3d4a6e",marginTop:4}}>Gas fees, fees del exchange</div></div>
+                </div>
+              )}
+              {["staking","airdrop","mineria","defi"].includes(opType) && (
+                <div style={{marginBottom:16}}>
+                  <label style={S.lbl}>Valor de mercado al recibir (€)</label>
+                  <input type="number" style={S.inp} placeholder="0.00" value={form.trans||""} onChange={e=>setForm({...form,trans:e.target.value})}/>
+                  <div style={{fontSize:11,color:"#3d4a6e",marginTop:4}}>Consulta CoinMarketCap o CoinGecko para el valor histórico exacto en esa fecha</div>
+                </div>
+              )}
+              <div style={{marginBottom:20}}>
+                <label style={S.lbl}>Notas (opcional)</label>
+                <input style={S.inp} placeholder="Exchange, número de operación, contexto..." value={form.notes||""} onChange={e=>setForm({...form,notes:e.target.value})}/>
+              </div>
+
+              {!result && <button style={S.btnP} onClick={calculate}>🧮 Calcular impacto fiscal</button>}
+
+              {result && (
+                <div>
+                  <div style={{background:"#161c2e",border:"1px solid #2e3a5e",borderRadius:12,padding:20,margin:"20px 0"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid #252d4a",fontSize:14}}>
+                      <span style={{color:"#7a85a8"}}>Casilla IRPF</span>
+                      <Casilla>{result.cas}</Casilla>
+                    </div>
+                    <div style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid #252d4a",fontSize:14}}>
+                      <span style={{color:"#7a85a8"}}>Base imponible</span>
+                      <span style={{fontWeight:700,color:result.gain>=0?"#3dba7a":"#e05252"}}>{result.gain>=0?"+":""}{fmt(result.gain)}</span>
+                    </div>
+                    <div style={{display:"flex",justifyContent:"space-between",padding:"14px 0 0",fontSize:16,fontWeight:700}}>
+                      <span style={{color:"#7a85a8"}}>Impuesto estimado</span>
+                      <span style={{color:"#e8c04a"}}>{fmt(result.tax)}</span>
+                    </div>
+                  </div>
+                  {result.gain<0 && <Alert color="#3dba7a">✅ <strong>Pérdida patrimonial:</strong> {fmt(Math.abs(result.gain))} que puedes compensar con ganancias de este año o los próximos 4 ejercicios.</Alert>}
+                  {result.gain>0 && <Alert color="#e8c04a">💡 <strong>Consejo:</strong> Si tienes pérdidas en otros activos este ejercicio, puedes compensarlas para reducir esta base imponible.</Alert>}
+                  <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+                    <button style={S.btnP} onClick={addOp}>✅ Añadir a mi declaración</button>
+                    <button style={S.btnS} onClick={()=>setResult(null)}>✏️ Editar datos</button>
+                  </div>
+                </div>
+              )}
+            </div>
+        )}
+
+        {/* ── REPORT ── */}
+        {tab==="report" && (state.ops.length===0
+          ? <div style={{textAlign:"center",padding:"60px 20px"}}>
+              <div style={{fontSize:56,opacity:.3,marginBottom:16}}>📄</div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,color:"#7a85a8"}}>Sin operaciones todavía</div>
+              <div style={{fontSize:13,color:"#3d4a6e",marginTop:8,marginBottom:24}}>Añade operaciones para generar tu informe fiscal.</div>
+              <button style={S.btnP} onClick={()=>goTab("add")}>➕ Añadir primera operación</button>
+            </div>
+          : <div>
+              <div style={{...S.card,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:12}}>
+                <div>
+                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:18}}>📄 Informe Fiscal {state.year}</div>
+                  <div style={{fontSize:13,color:"#7a85a8",marginTop:4}}>Resumen para completar tu declaración de la renta</div>
+                </div>
+                <button style={S.btnP} onClick={downloadReport}>⬇️ Descargar .txt</button>
+              </div>
+
+              {/* Casilla 1800 */}
+              <div style={{...S.card,border:"1px solid #2e3a5e"}}>
+                <div style={{marginBottom:12}}><Casilla>1800–1814</Casilla></div>
+                <div style={{fontWeight:600,fontSize:15,marginBottom:14}}>Ganancias y pérdidas patrimoniales (transmisiones)</div>
+                <div style={{background:"#161c2e",border:"1px solid #2e3a5e",borderRadius:10,padding:16,marginBottom:14}}>
+                  {[{k:"Ganancias totales",v:sm.gains,c:"#3dba7a"},{k:"Pérdidas totales",v:sm.losses,c:"#e05252"},{k:"Resultado neto casilla 1800",v:sm.net,c:sm.net>=0?"#3dba7a":"#e05252"}].map((r,i)=>(
+                    <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"9px 0",borderBottom:i<2?"1px solid #252d4a":"none",fontSize:14}}>
+                      <span style={{color:"#7a85a8"}}>{r.k}</span>
+                      <span style={{fontWeight:700,color:r.c}}>{r.v>=0?"+":""}{fmt(r.v)}</span>
+                    </div>
+                  ))}
+                </div>
+                <Alert>💡 <strong>Cómo rellenar:</strong> Renta Web → Ganancias patrimoniales → Monedas virtuales → Casilla 1804. Introduce cada operación con: nombre del activo, tipo de contraprestación, fechas y valores de adquisición/transmisión.</Alert>
+              </div>
+
+              {sm.staking>0&&<div style={{...S.card,border:"1px solid #2e3a5e"}}>
+                <div style={{marginBottom:12}}><Casilla>0033</Casilla></div>
+                <div style={{fontWeight:600,fontSize:15,marginBottom:14}}>Rendimientos del capital mobiliario (Staking/Lending)</div>
+                <div style={{background:"#161c2e",border:"1px solid #2e3a5e",borderRadius:10,padding:16,marginBottom:14}}>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:14}}>
+                    <span style={{color:"#7a85a8"}}>Total rendimientos</span>
+                    <span style={{fontWeight:700,color:"#4d82e8"}}>{fmt(sm.staking)}</span>
+                  </div>
+                </div>
+                <Alert>💡 <strong>Cómo rellenar:</strong> Renta Web → Rendimientos del capital mobiliario → Cesión de capitales a terceros → Casilla 0033.</Alert>
+              </div>}
+
+              {sm.airdrops>0&&<div style={{...S.card,border:"1px solid #2e3a5e"}}>
+                <div style={{marginBottom:12}}><Casilla>1626</Casilla></div>
+                <div style={{fontWeight:600,fontSize:15,marginBottom:14}}>Ganancias no derivadas de transmisión (Airdrops)</div>
+                <div style={{background:"#161c2e",border:"1px solid #2e3a5e",borderRadius:10,padding:16,marginBottom:14}}>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:14}}>
+                    <span style={{color:"#7a85a8"}}>Total airdrops/hardforks</span>
+                    <span style={{fontWeight:700,color:"#e8943a"}}>{fmt(sm.airdrops)}</span>
+                  </div>
+                </div>
+              </div>}
+
+              <div style={{background:"linear-gradient(135deg,#0e1220,#1a1408)",border:"1px solid #7a6115",borderRadius:12,padding:28,textAlign:"center"}}>
+                <div style={{fontSize:12,color:"#c9a227",textTransform:"uppercase",letterSpacing:2}}>Base Imponible Total Estimada</div>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:44,fontWeight:700,color:"#e8c04a",margin:"12px 0"}}>{fmt(sm.base)}</div>
+                <div style={{fontSize:22,fontWeight:700,color:sm.tax>0?"#e05252":"#3dba7a",marginBottom:20}}>Cuota IRPF estimada: {fmt(sm.tax)}</div>
+                <Alert color="#e8943a">⚠️ <strong>Importante:</strong> Estimación orientativa. El IRPF total incluye también tus rentas del trabajo, inmobiliarias, etc. Consulta siempre con un asesor fiscal certificado.</Alert>
+              </div>
+
+              <Alert color="#e8c04a" style={{marginTop:16}}>🛡️ <strong>Privacidad:</strong> Este informe se genera en tu dispositivo. Ningún dato ha sido enviado a ningún servidor. Para eliminar todos los datos, cierra esta pestaña o borra el historial del navegador.</Alert>
+            </div>
+        )}
+
+        {/* ── GUIDE ── */}
+        {tab==="guide" && (
+          <div>
+            <div style={S.card}>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,marginBottom:4}}>🎓 Guía Fiscal Cripto España 2024/2025</div>
+              <div style={{fontSize:13,color:"#7a85a8",marginBottom:16}}>Basada en normativa AEAT, Ley 35/2006 IRPF y consultas DGT vinculantes</div>
+              <Alert color="#e8c04a">📌 <strong>Principio básico:</strong> Cualquier operación con cripto que genere incremento de patrimonio tributa en España. No existe mínimo exento específico para cripto.</Alert>
+              <Alert>🔑 <strong>Regla de oro:</strong> Si solo compras y hodleas sin vender ni intercambiar, NO declaras en el IRPF. La simple compra no tributa nunca.</Alert>
+            </div>
+
+            {GUIDES.map((g,i)=>(
+              <div key={i} style={{background:"#161c2e",border:"1px solid #252d4a",borderRadius:12,marginBottom:12,overflow:"hidden"}}>
+                <div style={{padding:"16px 20px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}} onClick={()=>setOpenGuide(openGuide===i?null:i)}>
+                  <div style={{display:"flex",alignItems:"center",gap:14}}>
+                    <span style={{fontSize:22,width:32,textAlign:"center"}}>{g.icon}</span>
+                    <div>
+                      <span style={{fontWeight:600,fontSize:15}}>{g.title}</span>
+                      <span style={{marginLeft:10}}><Casilla>{g.cas}</Casilla></span>
+                    </div>
+                  </div>
+                  <span style={{color:"#3d4a6e",fontSize:14}}>{openGuide===i?"▲":"▼"}</span>
+                </div>
+                {openGuide===i&&(
+                  <div className="guide-body" style={{padding:"0 20px 20px",borderTop:"1px solid #252d4a"}}>
+                    <p>{g.body}</p>
+                    <strong style={{fontSize:12,color:"#e8c04a",textTransform:"uppercase",letterSpacing:1}}>💡 Consejos prácticos:</strong>
+                    <ul style={{marginTop:8}}>{g.tips.map((t,j)=><li key={j}>{t}</li>)}</ul>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            <div style={{...S.card,marginTop:8}}>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:17,marginBottom:4}}>💛 Apoya Angel Tax</div>
+              <div style={{fontSize:13,color:"#7a85a8",marginBottom:16}}>Angel Tax es 100% open source y gratuito. Si te ha ahorrado tiempo o dinero y quieres contribuir al desarrollo:</div>
+              {[
+                {icon:"₿", label:"Bitcoin",  addr:"Añade tu dirección BTC aquí"},
+                {icon:"Ξ", label:"Ethereum", addr:"Añade tu dirección ETH aquí"},
+                {icon:"◎", label:"Solana",   addr:"Añade tu dirección SOL aquí"},
+              ].map((w,i)=>(
+                <div key={i} style={{background:"#161c2e",border:"1px solid #252d4a",borderRadius:8,padding:"12px 16px",marginBottom:8,display:"flex",alignItems:"center",gap:12}}>
+                  <span style={{fontSize:20,width:30,textAlign:"center"}}>{w.icon}</span>
+                  <div>
+                    <div style={{fontWeight:600,fontSize:13}}>{w.label}</div>
+                    <div style={{fontSize:12,color:"#3d4a6e",fontFamily:"monospace"}}>{w.addr}</div>
+                  </div>
+                </div>
+              ))}
+              <div style={{marginTop:14,fontSize:12,color:"#3d4a6e",lineHeight:1.7}}>
+                🐙 Repositorio: <a href="https://github.com/kaizenbnb/Angel-TAX" target="_blank" style={{color:"#4d82e8"}}>github.com/kaizenbnb/Angel-TAX</a><br/>
+                Issues, sugerencias, pull requests — todo es bienvenido.<br/>
+                Áreas prioritarias: importación CSV de exchanges, más tipos de operaciones DeFi, tests automáticos.
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      {/* PRIVACY BAR */}
+      <div style={{position:"fixed",bottom:0,left:0,right:0,background:"#0e1220",borderTop:"1px solid #252d4a",padding:"10px 24px",display:"flex",alignItems:"center",justifyContent:"center",gap:16,fontSize:12,color:"#7a85a8",zIndex:100,flexWrap:"wrap"}}>
+        <div style={{width:7,height:7,borderRadius:"50%",background:"#3dba7a",flexShrink:0}}/>
+        <span>🔒 <strong style={{color:"#dde1f0"}}>Privacidad total:</strong> Todos los datos se procesan exclusivamente en tu navegador. Ningún dato sale de tu dispositivo.</span>
+        <span style={{color:"#252d4a"}}>·</span>
+        <a href="https://github.com/kaizenbnb/Angel-TAX" target="_blank" style={{color:"#3d4a6e",textDecoration:"none"}}>Open Source en GitHub ↗</a>
+      </div>
+    </>
+  );
+}
+
+// Mount the app
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(AngelTax));
+  </script>
+</body>
+</html>
