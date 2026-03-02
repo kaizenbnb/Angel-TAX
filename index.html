@@ -112,12 +112,43 @@
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
-let state = { ops: [], year: "2024" };
+let state = { ops: [], year: String(new Date().getFullYear() - 1) };
 let currentTab = "home";
 let currentOpType = null;
 let formData = {};
 let calcResult = null;
 let openGuide = null;
+let showProfileModal = false;
+
+// Perfil del usuario
+let userProfile = {
+  name: "", dni: "", address: "", city: "", cp: "", ccaa: "madrid"
+};
+
+// ═══════════════════════════════════════════
+// COMUNIDADES AUTÓNOMAS
+// ═══════════════════════════════════════════
+const CCAA = [
+  { id:"andalucia",      name:"Andalucía",              patrimonio: false,  threshold: 0,       note:"Bonificación 100% — sin impuesto de patrimonio" },
+  { id:"aragon",         name:"Aragón",                 patrimonio: true,   threshold: 500000,  note:"Mínimo exento 500.000€" },
+  { id:"asturias",       name:"Asturias",               patrimonio: true,   threshold: 700000,  note:"Mínimo exento 700.000€" },
+  { id:"baleares",       name:"Baleares",               patrimonio: true,   threshold: 700000,  note:"Tipos entre 0,28% y 3,45%" },
+  { id:"canarias",       name:"Canarias",               patrimonio: true,   threshold: 700000,  note:"Mínimo exento 700.000€" },
+  { id:"cantabria",      name:"Cantabria",              patrimonio: true,   threshold: 700000,  note:"Mínimo exento 700.000€" },
+  { id:"castilla_lm",    name:"Castilla-La Mancha",     patrimonio: true,   threshold: 700000,  note:"Mínimo exento 700.000€" },
+  { id:"castilla_leon",  name:"Castilla y León",        patrimonio: true,   threshold: 700000,  note:"Mínimo exento 700.000€" },
+  { id:"cataluna",       name:"Cataluña",               patrimonio: true,   threshold: 500000,  note:"Mínimo exento 500.000€, tipos hasta 2,75%" },
+  { id:"extremadura",    name:"Extremadura",            patrimonio: true,   threshold: 500000,  note:"Mínimo exento 500.000€" },
+  { id:"galicia",        name:"Galicia",                patrimonio: true,   threshold: 700000,  note:"Mínimo exento 700.000€" },
+  { id:"madrid",         name:"Madrid",                 patrimonio: false,  threshold: 0,       note:"Bonificación 100% — sin impuesto de patrimonio" },
+  { id:"murcia",         name:"Murcia",                 patrimonio: true,   threshold: 700000,  note:"Mínimo exento 700.000€" },
+  { id:"navarra",        name:"Navarra",                patrimonio: true,   threshold: 550000,  note:"Régimen foral — mínimo 550.000€" },
+  { id:"pais_vasco",     name:"País Vasco",             patrimonio: true,   threshold: 800000,  note:"Régimen foral — mínimo 800.000€" },
+  { id:"rioja",          name:"La Rioja",               patrimonio: true,   threshold: 700000,  note:"Bonificación 50% desde 2023" },
+  { id:"valencia",       name:"Comunitat Valenciana",   patrimonio: true,   threshold: 500000,  note:"Mínimo exento 500.000€, tipos hasta 3,12%" },
+];
+
+function getCCAA() { return CCAA.find(c => c.id === userProfile.ccaa) || CCAA[11]; }
 
 // ═══════════════════════════════════════════
 // FISCAL DATA
@@ -127,7 +158,7 @@ const BRACKETS = [
   { max:50000,   rate:0.21, label:"6.000 € – 50.000 €" },
   { max:200000,  rate:0.23, label:"50.000 € – 200.000 €" },
   { max:300000,  rate:0.27, label:"200.000 € – 300.000 €" },
-  { max:Infinity,rate:0.30, label:"Más de 300.000 €" },
+  { max:Infinity,rate:0.28, label:"Más de 300.000 €" },
 ];
 
 const OPS = [
@@ -208,6 +239,7 @@ function render() {
     ${currentTab==="home"   ? renderHome(sm)   : ""}
     ${currentTab==="add"    ? renderAdd()       : ""}
     ${currentTab==="import" ? renderImport()    : ""}
+    ${currentTab==="analyze"? renderAnalyze()   : ""}
     ${currentTab==="report" ? renderReport(sm)  : ""}
     ${currentTab==="guide"  ? renderGuide()     : ""}
     ${renderPrivacyBar()}
@@ -215,7 +247,38 @@ function render() {
   attachEvents();
 }
 
+// ═══════════════════════════════════════════
+// DEADLINE & COUNTDOWN
+// ═══════════════════════════════════════════
+function getDeadlineInfo() {
+  const now = new Date();
+  const yr = now.getFullYear();
+  // Renta deadline: June 30th of current year (for previous fiscal year)
+  const deadline = new Date(yr, 5, 30, 23, 59, 59); // June 30
+  if (now > deadline) {
+    // After June 30 - next campaign starts April of next year
+    return { days: null, label: "Campaña cerrada", sub: `Próxima campaña: Abril ${yr+1}`, urgent: false, past: true };
+  }
+  const campaignStart = new Date(yr, 3, 2); // April 2
+  if (now < campaignStart) {
+    const daysToStart = Math.ceil((campaignStart - now) / 86400000);
+    return { days: daysToStart, label: `Campaña en ${daysToStart} días`, sub: `Apertura: 2 de abril ${yr}`, urgent: false, past: false, notOpen: true };
+  }
+  const daysLeft = Math.ceil((deadline - now) / 86400000);
+  const urgent = daysLeft <= 30;
+  return {
+    days: daysLeft,
+    label: `${daysLeft} días para la Renta`,
+    sub: `Plazo: 30 de junio de ${yr}`,
+    urgent,
+    past: false,
+    notOpen: false
+  };
+}
+
 function renderHeader() {
+  const dl = getDeadlineInfo();
+  const ccaa = getCCAA();
   return `
     <div class="header">
       <div class="logo">
@@ -236,82 +299,62 @@ function renderHeader() {
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
-
-  <!-- ALA IZQUIERDA -->
   <g filter="url(#glow)">
-    <path d="M 85 95
-             C 72 80, 48 66, 22 52
-             C 30 68, 44 80, 50 95
-             C 36 86, 20 76, 10 68
-             C 18 84, 34 98, 46 108
-             C 32 104, 16 96, 6 92
-             C 16 112, 38 122, 58 118
-             C 68 114, 78 106, 84 98 Z"
-          fill="url(#wingL)" stroke="#f0c93a" stroke-width="0.8" stroke-opacity="0.6"/>
-    <!-- plumas -->
-    <path d="M 84 95 C 66 82, 44 72, 24 60" fill="none" stroke="#fff5a0" stroke-width="1"   stroke-opacity="0.5" stroke-linecap="round"/>
-    <path d="M 78 105 C 58 94, 36 88, 14 82"  fill="none" stroke="#fff5a0" stroke-width="0.8" stroke-opacity="0.38" stroke-linecap="round"/>
+    <path d="M 85 95 C 72 80, 48 66, 22 52 C 30 68, 44 80, 50 95 C 36 86, 20 76, 10 68 C 18 84, 34 98, 46 108 C 32 104, 16 96, 6 92 C 16 112, 38 122, 58 118 C 68 114, 78 106, 84 98 Z" fill="url(#wingL)" stroke="#f0c93a" stroke-width="0.8" stroke-opacity="0.6"/>
+    <path d="M 84 95 C 66 82, 44 72, 24 60" fill="none" stroke="#fff5a0" stroke-width="1" stroke-opacity="0.5" stroke-linecap="round"/>
+    <path d="M 78 105 C 58 94, 36 88, 14 82" fill="none" stroke="#fff5a0" stroke-width="0.8" stroke-opacity="0.38" stroke-linecap="round"/>
     <path d="M 70 114 C 52 108, 32 106, 12 104" fill="none" stroke="#fff5a0" stroke-width="0.7" stroke-opacity="0.28" stroke-linecap="round"/>
   </g>
-
-  <!-- ALA DERECHA -->
   <g filter="url(#glow)">
-    <path d="M 115 95
-             C 128 80, 152 66, 178 52
-             C 170 68, 156 80, 150 95
-             C 164 86, 180 76, 190 68
-             C 182 84, 166 98, 154 108
-             C 168 104, 184 96, 194 92
-             C 184 112, 162 122, 142 118
-             C 132 114, 122 106, 116 98 Z"
-          fill="url(#wingR)" stroke="#f0c93a" stroke-width="0.8" stroke-opacity="0.6"/>
-    <!-- plumas -->
-    <path d="M 116 95 C 134 82, 156 72, 176 60"  fill="none" stroke="#fff5a0" stroke-width="1"   stroke-opacity="0.5" stroke-linecap="round"/>
-    <path d="M 122 105 C 142 94, 164 88, 186 82"  fill="none" stroke="#fff5a0" stroke-width="0.8" stroke-opacity="0.38" stroke-linecap="round"/>
+    <path d="M 115 95 C 128 80, 152 66, 178 52 C 170 68, 156 80, 150 95 C 164 86, 180 76, 190 68 C 182 84, 166 98, 154 108 C 168 104, 184 96, 194 92 C 184 112, 162 122, 142 118 C 132 114, 122 106, 116 98 Z" fill="url(#wingR)" stroke="#f0c93a" stroke-width="0.8" stroke-opacity="0.6"/>
+    <path d="M 116 95 C 134 82, 156 72, 176 60" fill="none" stroke="#fff5a0" stroke-width="1" stroke-opacity="0.5" stroke-linecap="round"/>
+    <path d="M 122 105 C 142 94, 164 88, 186 82" fill="none" stroke="#fff5a0" stroke-width="0.8" stroke-opacity="0.38" stroke-linecap="round"/>
     <path d="M 130 114 C 148 108, 168 106, 188 104" fill="none" stroke="#fff5a0" stroke-width="0.7" stroke-opacity="0.28" stroke-linecap="round"/>
   </g>
-
-  <!-- ESCUDO ORIGINAL (emoji 🛡️ fiel) -->
-  <!-- Cuerpo del escudo azul -->
-  <path d="M 100 42 L 60 58 L 60 105 Q 60 138 100 155 Q 140 138 140 105 L 140 58 Z"
-        fill="#1e3a6e"/>
-  <!-- Brillo izquierdo del escudo -->
-  <path d="M 100 42 L 60 58 L 60 105 Q 60 138 100 155 Q 80 138 80 105 L 80 58 Z"
-        fill="#2a5298" opacity="0.7"/>
-  <!-- Brillo superior -->
-  <path d="M 100 42 L 60 58 L 70 62 L 100 50 L 130 62 L 140 58 Z"
-        fill="#4a90d9" opacity="0.6"/>
-  <!-- Línea borde escudo -->
-  <path d="M 100 42 L 60 58 L 60 105 Q 60 138 100 155 Q 140 138 140 105 L 140 58 Z"
-        fill="none" stroke="#6ab0f5" stroke-width="2" stroke-opacity="0.8"/>
-  <!-- Detalle interior — línea dorada -->
-  <path d="M 100 52 L 68 65 L 68 104 Q 68 130 100 144 Q 132 130 132 104 L 132 65 Z"
-        fill="none" stroke="#e8c04a" stroke-width="1" stroke-opacity="0.35"/>
-  <!-- Destello punto de luz -->
+  <path d="M 100 42 L 60 58 L 60 105 Q 60 138 100 155 Q 140 138 140 105 L 140 58 Z" fill="#1e3a6e"/>
+  <path d="M 100 42 L 60 58 L 60 105 Q 60 138 100 155 Q 80 138 80 105 L 80 58 Z" fill="#2a5298" opacity="0.7"/>
+  <path d="M 100 42 L 60 58 L 70 62 L 100 50 L 130 62 L 140 58 Z" fill="#4a90d9" opacity="0.6"/>
+  <path d="M 100 42 L 60 58 L 60 105 Q 60 138 100 155 Q 140 138 140 105 L 140 58 Z" fill="none" stroke="#6ab0f5" stroke-width="2" stroke-opacity="0.8"/>
+  <path d="M 100 52 L 68 65 L 68 104 Q 68 130 100 144 Q 132 130 132 104 L 132 65 Z" fill="none" stroke="#e8c04a" stroke-width="1" stroke-opacity="0.35"/>
   <ellipse cx="80" cy="72" rx="8" ry="5" fill="#7ec8ff" opacity="0.25" transform="rotate(-15,80,72)"/>
-</svg>
-</div>
+</svg></div>
         <div>
           <h1>Angel Tax</h1>
           <span>Fiscalidad Cripto · España</span>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <!-- Countdown pill -->
+        <div style="background:${dl.urgent?"var(--rd)":dl.past?"var(--sur2)":"var(--gd)"};border:1px solid ${dl.urgent?"var(--red)":dl.past?"var(--bor)":"var(--green)"};border-radius:20px;padding:5px 14px;cursor:pointer" onclick="goTab('guide')" title="${dl.sub}">
+          <div style="font-size:10px;font-weight:700;color:${dl.urgent?"var(--red)":dl.past?"var(--dim)":"var(--green)"};letter-spacing:.5px">${dl.label}</div>
+          <div style="font-size:9px;color:var(--mut)">${dl.sub}</div>
+        </div>
+        <!-- CCAA pill -->
+        <div style="background:var(--bd);border:1px solid var(--bor);border-radius:20px;padding:5px 14px;cursor:pointer;font-size:11px;color:var(--blue)" onclick="openProfile()" title="Cambiar comunidad autónoma">
+          🏛️ ${ccaa.name.split(" ")[0]}
+        </div>
         <select id="yearSel" onchange="changeYear(this.value)">
-          <option ${state.year==="2024"?"selected":""}>2024</option>
-          <option ${state.year==="2023"?"selected":""}>2023</option>
-          <option ${state.year==="2022"?"selected":""}>2022</option>
+          ${(()=>{
+            const current = new Date().getFullYear();
+            const fiscal = current - 1;
+            return Array.from({length:5},(_,i)=>fiscal-i)
+              .map(y=>`<option ${state.year===String(y)?"selected":""}>${y}</option>`)
+              .join("");
+          })()}
         </select>
         <div class="badge">🔒 100% Local</div>
+        <!-- Profile button -->
+        <button onclick="openProfile()" style="background:var(--sur2);border:1px solid var(--bor);border-radius:8px;color:var(--dim);padding:7px 12px;cursor:pointer;font-size:13px" title="Tu perfil">${userProfile.name ? "👤 "+userProfile.name.split(" ")[0] : "👤 Perfil"}</button>
       </div>
-    </div>`;
-}
+    </div>
+    ${showProfileModal ? renderProfileModal() : ""}`;
 
 function renderNav(sm) {
   const tabs = [
     {id:"home",  icon:"🏠", label:"Inicio"},
     {id:"add",    icon:"➕", label:"Nueva Operación"},
     {id:"import", icon:"📥", label:"Importar CSV"},
+    {id:"analyze",icon:"🤖", label:"Analizar Doc."},
     {id:"report", icon:"📄", label:"Mi Informe"},
     {id:"guide", icon:"📚", label:"Guía Fiscal"},
   ];
@@ -324,88 +367,193 @@ function renderNav(sm) {
 }
 
 function renderHome(sm) {
+  const dl = getDeadlineInfo();
+  const ccaa = getCCAA();
+
   if (state.ops.length === 0) {
-    return `<div class="empty">
-      <div style="margin-bottom:8px;opacity:0.85"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="120" height="120">
-  <defs>
-    <linearGradient id="wingL" x1="100%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%"  stop-color="#ffe066" stop-opacity="1"/>
-      <stop offset="60%" stop-color="#d4a017" stop-opacity="0.85"/>
-      <stop offset="100%" stop-color="#8b6000" stop-opacity="0.3"/>
-    </linearGradient>
-    <linearGradient id="wingR" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%"  stop-color="#ffe066" stop-opacity="1"/>
-      <stop offset="60%" stop-color="#d4a017" stop-opacity="0.85"/>
-      <stop offset="100%" stop-color="#8b6000" stop-opacity="0.3"/>
-    </linearGradient>
-    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="3.5" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-  </defs>
+    return `
+    <!-- HERO -->
+    <div style="text-align:center;padding:40px 20px 32px;position:relative;overflow:hidden">
+      <!-- Glow background -->
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:400px;height:400px;background:radial-gradient(circle,rgba(201,162,39,.08) 0%,transparent 70%);pointer-events:none"></div>
 
-  <!-- ALA IZQUIERDA -->
-  <g filter="url(#glow)">
-    <path d="M 85 95
-             C 72 80, 48 66, 22 52
-             C 30 68, 44 80, 50 95
-             C 36 86, 20 76, 10 68
-             C 18 84, 34 98, 46 108
-             C 32 104, 16 96, 6 92
-             C 16 112, 38 122, 58 118
-             C 68 114, 78 106, 84 98 Z"
-          fill="url(#wingL)" stroke="#f0c93a" stroke-width="0.8" stroke-opacity="0.6"/>
-    <!-- plumas -->
-    <path d="M 84 95 C 66 82, 44 72, 24 60" fill="none" stroke="#fff5a0" stroke-width="1"   stroke-opacity="0.5" stroke-linecap="round"/>
-    <path d="M 78 105 C 58 94, 36 88, 14 82"  fill="none" stroke="#fff5a0" stroke-width="0.8" stroke-opacity="0.38" stroke-linecap="round"/>
-    <path d="M 70 114 C 52 108, 32 106, 12 104" fill="none" stroke="#fff5a0" stroke-width="0.7" stroke-opacity="0.28" stroke-linecap="round"/>
-  </g>
-
-  <!-- ALA DERECHA -->
-  <g filter="url(#glow)">
-    <path d="M 115 95
-             C 128 80, 152 66, 178 52
-             C 170 68, 156 80, 150 95
-             C 164 86, 180 76, 190 68
-             C 182 84, 166 98, 154 108
-             C 168 104, 184 96, 194 92
-             C 184 112, 162 122, 142 118
-             C 132 114, 122 106, 116 98 Z"
-          fill="url(#wingR)" stroke="#f0c93a" stroke-width="0.8" stroke-opacity="0.6"/>
-    <!-- plumas -->
-    <path d="M 116 95 C 134 82, 156 72, 176 60"  fill="none" stroke="#fff5a0" stroke-width="1"   stroke-opacity="0.5" stroke-linecap="round"/>
-    <path d="M 122 105 C 142 94, 164 88, 186 82"  fill="none" stroke="#fff5a0" stroke-width="0.8" stroke-opacity="0.38" stroke-linecap="round"/>
-    <path d="M 130 114 C 148 108, 168 106, 188 104" fill="none" stroke="#fff5a0" stroke-width="0.7" stroke-opacity="0.28" stroke-linecap="round"/>
-  </g>
-
-  <!-- ESCUDO ORIGINAL (emoji 🛡️ fiel) -->
-  <!-- Cuerpo del escudo azul -->
-  <path d="M 100 42 L 60 58 L 60 105 Q 60 138 100 155 Q 140 138 140 105 L 140 58 Z"
-        fill="#1e3a6e"/>
-  <!-- Brillo izquierdo del escudo -->
-  <path d="M 100 42 L 60 58 L 60 105 Q 60 138 100 155 Q 80 138 80 105 L 80 58 Z"
-        fill="#2a5298" opacity="0.7"/>
-  <!-- Brillo superior -->
-  <path d="M 100 42 L 60 58 L 70 62 L 100 50 L 130 62 L 140 58 Z"
-        fill="#4a90d9" opacity="0.6"/>
-  <!-- Línea borde escudo -->
-  <path d="M 100 42 L 60 58 L 60 105 Q 60 138 100 155 Q 140 138 140 105 L 140 58 Z"
-        fill="none" stroke="#6ab0f5" stroke-width="2" stroke-opacity="0.8"/>
-  <!-- Detalle interior — línea dorada -->
-  <path d="M 100 52 L 68 65 L 68 104 Q 68 130 100 144 Q 132 130 132 104 L 132 65 Z"
-        fill="none" stroke="#e8c04a" stroke-width="1" stroke-opacity="0.35"/>
-  <!-- Destello punto de luz -->
-  <ellipse cx="80" cy="72" rx="8" ry="5" fill="#7ec8ff" opacity="0.25" transform="rotate(-15,80,72)"/>
-</svg>
-</div>
-      <div class="ff-serif" style="font-size:26px;color:var(--dim);margin-bottom:8px">Bienvenido a Angel Tax</div>
-      <div style="font-size:14px;color:var(--mut);max-width:380px;margin:0 auto 28px;line-height:1.7">
-        Tu asesor fiscal de criptomonedas en España. Añade tus operaciones y te decimos exactamente qué casillas rellenar en la renta — gratis, sin registro, sin servidores.
+      <!-- Logo grande -->
+      <div style="margin-bottom:20px;opacity:0.9">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100" height="100" style="filter:drop-shadow(0 0 20px rgba(201,162,39,.3))">
+          <defs>
+            <linearGradient id="wL2" x1="100%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#ffe066"/><stop offset="60%" stop-color="#d4a017" stop-opacity=".85"/><stop offset="100%" stop-color="#8b6000" stop-opacity=".3"/></linearGradient>
+            <linearGradient id="wR2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ffe066"/><stop offset="60%" stop-color="#d4a017" stop-opacity=".85"/><stop offset="100%" stop-color="#8b6000" stop-opacity=".3"/></linearGradient>
+            <filter id="gw2"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          </defs>
+          <g filter="url(#gw2)">
+            <path d="M 85 95 C 72 80, 48 66, 22 52 C 30 68, 44 80, 50 95 C 36 86, 20 76, 10 68 C 18 84, 34 98, 46 108 C 32 104, 16 96, 6 92 C 16 112, 38 122, 58 118 C 68 114, 78 106, 84 98 Z" fill="url(#wL2)" stroke="#f0c93a" stroke-width="0.8" stroke-opacity="0.6"/>
+            <path d="M 84 95 C 66 82, 44 72, 24 60" fill="none" stroke="#fff5a0" stroke-width="1" stroke-opacity="0.5" stroke-linecap="round"/>
+            <path d="M 78 105 C 58 94, 36 88, 14 82" fill="none" stroke="#fff5a0" stroke-width="0.8" stroke-opacity="0.38" stroke-linecap="round"/>
+          </g>
+          <g filter="url(#gw2)">
+            <path d="M 115 95 C 128 80, 152 66, 178 52 C 170 68, 156 80, 150 95 C 164 86, 180 76, 190 68 C 182 84, 166 98, 154 108 C 168 104, 184 96, 194 92 C 184 112, 162 122, 142 118 C 132 114, 122 106, 116 98 Z" fill="url(#wR2)" stroke="#f0c93a" stroke-width="0.8" stroke-opacity="0.6"/>
+            <path d="M 116 95 C 134 82, 156 72, 176 60" fill="none" stroke="#fff5a0" stroke-width="1" stroke-opacity="0.5" stroke-linecap="round"/>
+            <path d="M 122 105 C 142 94, 164 88, 186 82" fill="none" stroke="#fff5a0" stroke-width="0.8" stroke-opacity="0.38" stroke-linecap="round"/>
+          </g>
+          <path d="M 100 42 L 60 58 L 60 105 Q 60 138 100 155 Q 140 138 140 105 L 140 58 Z" fill="#1e3a6e"/>
+          <path d="M 100 42 L 60 58 L 60 105 Q 60 138 100 155 Q 80 138 80 105 L 80 58 Z" fill="#2a5298" opacity="0.7"/>
+          <path d="M 100 42 L 60 58 L 70 62 L 100 50 L 130 62 L 140 58 Z" fill="#4a90d9" opacity="0.6"/>
+          <path d="M 100 42 L 60 58 L 60 105 Q 60 138 100 155 Q 140 138 140 105 L 140 58 Z" fill="none" stroke="#6ab0f5" stroke-width="2" stroke-opacity="0.8"/>
+          <path d="M 100 52 L 68 65 L 68 104 Q 68 130 100 144 Q 132 130 132 104 L 132 65 Z" fill="none" stroke="#e8c04a" stroke-width="1" stroke-opacity="0.35"/>
+        </svg>
       </div>
-      <div class="alert alert-gold" style="max-width:460px;margin:0 auto 24px;text-align:left">
-        🔒 <strong>Privacidad total:</strong> Todos tus datos se procesan únicamente en tu navegador. Ningún dato sale de tu dispositivo jamás.
+
+      <h2 class="ff-serif" style="font-size:32px;color:var(--gold2);margin-bottom:10px;line-height:1.2">Angel Tax</h2>
+      <p style="font-size:16px;color:var(--dim);margin-bottom:6px">Tu asesor fiscal de criptomonedas en España</p>
+      <p style="font-size:13px;color:var(--mut);max-width:480px;margin:0 auto 28px;line-height:1.7">
+        Gratis · Sin registro · Sin servidores · 100% en tu navegador
+      </p>
+      <button class="btn-primary" onclick="goTab('add')" style="font-size:15px;padding:13px 32px;margin-bottom:10px">➕ Empezar mi declaración</button>
+      <div style="font-size:12px;color:var(--mut);margin-top:8px">o <span style="color:var(--blue);cursor:pointer" onclick="goTab('import')">importa tus operaciones en CSV</span> · <span style="color:var(--blue);cursor:pointer" onclick="goTab('analyze')">analiza un documento con IA</span></div>
+    </div>
+
+    <!-- STORYTELLING -->
+    <div style="background:var(--sur);border:1px solid var(--bor);border-radius:14px;padding:28px;margin-bottom:20px">
+      <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px">¿Por qué nace Angel Tax?</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <p style="font-size:14px;color:var(--dim);line-height:1.8;margin-bottom:12px">
+            En España, <strong style="color:var(--text)">más de 5 millones de personas</strong> tienen o han tenido criptomonedas. La mayoría no sabe qué declarar, cómo hacerlo, o no puede permitirse pagar a un asesor fiscal especializado.
+          </p>
+          <p style="font-size:14px;color:var(--dim);line-height:1.8">
+            Hacienda sabe más de lo que crees: los exchanges españoles reportan tus transacciones mediante los <strong style="color:var(--text)">Modelos 172/173</strong>, y desde 2026 la directiva europea <strong style="color:var(--text)">DAC8</strong> obliga a todos los exchanges europeos a compartir tus datos automáticamente.
+          </p>
+        </div>
+        <div>
+          <p style="font-size:14px;color:var(--dim);line-height:1.8;margin-bottom:12px">
+            Angel Tax nace para <strong style="color:var(--gold2)">democratizar el acceso a la fiscalidad cripto</strong>. Sin suscripciones, sin datos en servidores, sin letra pequeña. Todo el código es open source y auditado por la comunidad.
+          </p>
+          <p style="font-size:14px;color:var(--dim);line-height:1.8">
+            Nacido en el ecosistema de <strong style="color:var(--text)">Binance España</strong>. Avalado por la normativa AEAT vigente y consultas DGT vinculantes.
+          </p>
+        </div>
       </div>
-      <button class="btn-primary" onclick="goTab('add')">➕ Añadir primera operación</button>
+    </div>
+
+    <!-- ALERTAS IMPORTANTES -->
+    <div style="font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px">⚡ Lo que debes saber ahora mismo</div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:24px">
+
+      <!-- DAC8 2026 -->
+      <div style="background:var(--rd);border:1.5px solid var(--red);border-radius:12px;padding:20px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:24px">🚨</span>
+          <div>
+            <div style="font-weight:700;font-size:14px;color:var(--red)">DAC8 — Entra en vigor en 2026</div>
+            <div style="font-size:11px;color:var(--mut)">Directiva EU de intercambio automático</div>
+          </div>
+        </div>
+        <p style="font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:10px">
+          Desde 2026, <strong style="color:var(--text)">todos los exchanges europeos</strong> (Binance, Coinbase, Kraken…) estarán obligados a reportar automáticamente tus transacciones a Hacienda. Si no tienes tus años anteriores regularizados, hazlo ahora.
+        </p>
+        <div style="font-size:11px;font-weight:600;color:var(--red)">⏰ Te quedan menos de 12 meses para regularizarte</div>
+      </div>
+
+      <!-- Plazo Renta -->
+      <div style="background:${dl.urgent?"var(--rd)":"#0a1a10"};border:1.5px solid ${dl.urgent?"var(--red)":"var(--green)"};border-radius:12px;padding:20px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:24px">${dl.urgent?"⏰":"📅"}</span>
+          <div>
+            <div style="font-weight:700;font-size:14px;color:${dl.urgent?"var(--red)":"var(--green)"}">${dl.label}</div>
+            <div style="font-size:11px;color:var(--mut)">Declaración IRPF ${state.year}</div>
+          </div>
+        </div>
+        <p style="font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:10px">
+          ${dl.past
+            ? `La campaña de la renta ${state.year} ya ha cerrado. Si te olvidaste de declarar, puedes presentar una <strong style="color:var(--text)">declaración complementaria o extemporánea</strong> con recargo.`
+            : dl.notOpen
+            ? `La campaña de la renta ${state.year} aún no ha abierto. Puedes ir preparando tus datos con Angel Tax mientras tanto.`
+            : `${dl.days > 30 ? "Tienes tiempo" : "<strong style='color:var(--red)'>¡Urgente!</strong>"} para presentar la declaración de ${state.year}. El plazo cierra el <strong style="color:var(--text)">30 de junio de ${new Date().getFullYear()}</strong>.`
+          }
+        </p>
+        ${!dl.past&&!dl.notOpen?`<div style="font-size:11px;font-weight:600;color:${dl.urgent?"var(--red)":"var(--green)"}">Campaña: 2 abril – 30 junio ${new Date().getFullYear()}</div>`:""}
+      </div>
+
+      <!-- Modelo 721 -->
+      <div style="background:#0a0f1a;border:1.5px solid var(--blue);border-radius:12px;padding:20px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:24px">🌍</span>
+          <div>
+            <div style="font-weight:700;font-size:14px;color:var(--blue)">Modelo 721 — Cripto en el extranjero</div>
+            <div style="font-size:11px;color:var(--mut)">Obligatorio si superas 50.000€</div>
+          </div>
+        </div>
+        <p style="font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:10px">
+          Si el <strong style="color:var(--text)">31 de diciembre</strong> tenías más de 50.000€ en exchanges extranjeros (Binance, Coinbase, Kraken…), debes presentar el Modelo 721 antes del <strong style="color:var(--text)">31 de marzo</strong>. Las sanciones por no presentarlo pueden superar los 10.000€.
+        </p>
+        <div style="font-size:11px;font-weight:600;color:var(--blue)">Plazo: 1 enero – 31 marzo</div>
+      </div>
+
+      <!-- Tax Loss Harvesting -->
+      <div style="background:#0f1a0a;border:1.5px solid var(--green);border-radius:12px;padding:20px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:24px">💡</span>
+          <div>
+            <div style="font-weight:700;font-size:14px;color:var(--green)">Tax Loss Harvesting</div>
+            <div style="font-size:11px;color:var(--mut)">Estrategia 100% legal para pagar menos</div>
+          </div>
+        </div>
+        <p style="font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:10px">
+          Antes del <strong style="color:var(--text)">31 de diciembre</strong>, vende activos en pérdida para compensar tus ganancias del año. Las pérdidas reducen directamente tu base imponible. Puedes recomprar el mismo activo <strong style="color:var(--text)">2 meses después</strong> sin problema.
+        </p>
+        <div style="font-size:11px;font-weight:600;color:var(--green)">Regla 2 meses · Compensable hasta 4 años</div>
+      </div>
+
+      <!-- Patrimonio según CCAA -->
+      <div style="background:#0a0f1a;border:1.5px solid ${ccaa.patrimonio?"var(--orange)":"var(--green)"};border-radius:12px;padding:20px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:24px">🏛️</span>
+          <div>
+            <div style="font-weight:700;font-size:14px;color:${ccaa.patrimonio?"var(--orange)":"var(--green)"}">Impuesto de Patrimonio · ${ccaa.name}</div>
+            <div style="font-size:11px;color:var(--mut);cursor:pointer" onclick="openProfile()">Cambiar comunidad →</div>
+          </div>
+        </div>
+        <p style="font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:10px">
+          ${ccaa.patrimonio
+            ? `En <strong style="color:var(--text)">${ccaa.name}</strong>, si tu patrimonio neto supera los <strong style="color:var(--orange)">${(ccaa.threshold/1000).toFixed(0)}.000€</strong> debes presentar el Impuesto de Patrimonio. Las criptomonedas cuentan al valor de mercado del 31 de diciembre.`
+            : `Enhorabuena 🎉 En <strong style="color:var(--text)">${ccaa.name}</strong> existe una bonificación del 100% en el Impuesto de Patrimonio. No pagas este impuesto independientemente de tu patrimonio cripto.`
+          }
+        </p>
+        <div style="font-size:11px;font-weight:600;color:${ccaa.patrimonio?"var(--orange)":"var(--green)"}">${ccaa.note}</div>
+      </div>
+
+      <!-- Donaciones ONG -->
+      <div style="background:#1a0a14;border:1.5px solid #c066a0;border-radius:12px;padding:20px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:24px">💝</span>
+          <div>
+            <div style="font-weight:700;font-size:14px;color:#e088c0">Donación cripto a ONG</div>
+            <div style="font-size:11px;color:var(--mut)">Deducción hasta el 80%</div>
+          </div>
+        </div>
+        <p style="font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:10px">
+          Donar cripto a una ONG certificada es una de las mejores estrategias fiscales. Primeros <strong style="color:var(--text)">150€</strong> deducción del <strong style="color:#e088c0">80%</strong>. A partir de 150€, deducción del <strong style="color:#e088c0">35%</strong>. La donación tributa como transmisión, pero la deducción compensa con creces.
+        </p>
+        <div style="font-size:11px;font-weight:600;color:#e088c0">Art. 19 Ley 49/2002 · Mecenazgo</div>
+      </div>
+    </div>
+
+    <!-- FEATURES -->
+    <div style="font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px">🛡️ ¿Qué puedo hacer con Angel Tax?</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:28px">
+      ${[
+        {icon:"➕", t:"Añadir operaciones",   d:"Compraventas, staking, airdrops, NFTs, DeFi", tab:"add"},
+        {icon:"📥", t:"Importar CSV",          d:"Binance, Coinbase, Bit2Me — importación directa", tab:"import"},
+        {icon:"🤖", t:"Analizar con IA",       d:"Sube cualquier PDF o Excel y la IA extrae tus datos", tab:"analyze"},
+        {icon:"📄", t:"Generar informe",       d:"PDF profesional listo para tu asesor fiscal", tab:"report"},
+        {icon:"📚", t:"Guía fiscal completa",  d:"Casillas, estrategias, Modelo 721, DeFi", tab:"guide"},
+      ].map(f=>`
+        <div onclick="goTab('${f.tab}')" style="background:var(--sur2);border:1px solid var(--bor);border-radius:10px;padding:16px;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--bor2)'" onmouseout="this.style.borderColor='var(--bor)'">
+          <div style="font-size:22px;margin-bottom:8px">${f.icon}</div>
+          <div style="font-weight:600;font-size:13px;margin-bottom:4px">${f.t}</div>
+          <div style="font-size:11px;color:var(--mut);line-height:1.5">${f.d}</div>
+        </div>`).join("")}
     </div>`;
   }
 
@@ -1099,6 +1247,695 @@ function cancelImport() {
   render();
 }
 
+// ═══════════════════════════════════════════
+// AI DOCUMENT ANALYZER
+// ═══════════════════════════════════════════
+let analyzeState = {
+  file: null, fileName: "", fileType: "", loading: false,
+  result: null, error: null, previewOps: null, previewSummary: null
+};
+
+function renderAnalyze() {
+  const st = analyzeState;
+  return `<div class="card">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <div class="card-title">🤖 Analizador IA de Documentos</div>
+      <span style="background:linear-gradient(135deg,#c9a227,#e8c04a);color:#0a0c14;border-radius:20px;padding:2px 10px;font-size:10px;font-weight:700;letter-spacing:1px">BETA</span>
+    </div>
+    <div class="card-sub" style="margin-bottom:20px">Sube cualquier informe fiscal y la IA extrae automáticamente tus datos</div>
+
+    <div class="alert alert-gold">
+      🔒 <strong>Privacidad:</strong> Tu documento se envía únicamente a la API de Anthropic para su análisis. No se almacena en ningún servidor propio. Puedes anonimizar tu nombre antes de subir.
+    </div>
+
+    <!-- FORMATOS SOPORTADOS -->
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px">
+      ${[
+        {ext:"PDF",   icon:"📄", c:"#e05252"},
+        {ext:"CSV",   icon:"📊", c:"#3dba7a"},
+        {ext:"Excel", icon:"📗", c:"#3dba7a"},
+        {ext:"PNG",   icon:"🖼️", c:"#4d82e8"},
+        {ext:"JPG",   icon:"📷", c:"#4d82e8"},
+      ].map(f=>`<span style="background:var(--sur2);border:1px solid var(--bor);border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;color:${f.c}">${f.icon} ${f.ext}</span>`).join("")}
+    </div>
+
+    <!-- UPLOAD ZONE -->
+    ${!st.file && !st.loading && !st.result ? `
+    <label id="analyzeDropzone" style="display:block;background:var(--sur2);border:2px dashed var(--bor2);border-radius:14px;padding:40px;text-align:center;cursor:pointer;transition:all .2s" ondragover="event.preventDefault();this.style.borderColor='var(--gold)'" ondragleave="this.style.borderColor='var(--bor2)'" ondrop="handleAnalyzeDrop(event)">
+      <input type="file" id="analyzeFile" accept=".pdf,.csv,.xlsx,.xls,.png,.jpg,.jpeg" style="display:none" onchange="handleAnalyzeFile(this)"/>
+      <div style="font-size:48px;margin-bottom:12px">📂</div>
+      <div style="font-weight:700;font-size:16px;color:var(--text);margin-bottom:6px">Arrastra tu documento aquí</div>
+      <div style="font-size:13px;color:var(--dim);margin-bottom:16px">o haz clic para seleccionar</div>
+      <div style="display:inline-block;background:linear-gradient(135deg,#c9a227,#e8c04a);color:#0a0c14;padding:10px 24px;border-radius:8px;font-weight:700;font-size:14px">Seleccionar archivo</div>
+    </label>` : ""}
+
+    <!-- LOADING -->
+    ${st.loading ? `
+    <div style="text-align:center;padding:48px 20px">
+      <div style="font-size:48px;margin-bottom:16px;animation:spin 1s linear infinite;display:inline-block">⚙️</div>
+      <div style="font-weight:700;font-size:16px;color:var(--gold2);margin-bottom:8px">Analizando documento...</div>
+      <div style="font-size:13px;color:var(--dim)">${st.fileName}</div>
+      <div style="font-size:12px;color:var(--mut);margin-top:8px">La IA está extrayendo tus operaciones fiscales</div>
+    </div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>` : ""}
+
+    <!-- ERROR -->
+    ${st.error ? `
+    <div class="alert alert-red">❌ <strong>Error:</strong> ${st.error}</div>
+    <button class="btn-sec" onclick="resetAnalyze()">← Intentar de nuevo</button>` : ""}
+
+    <!-- RESULTADO -->
+    ${st.result && !st.loading ? renderAnalyzeResult() : ""}
+  </div>`;
+}
+
+function renderAnalyzeResult() {
+  const r = analyzeState.result;
+  const ops = analyzeState.previewOps || [];
+  const sm = analyzeState.previewSummary || {};
+
+  return `
+    <!-- RESUMEN EXTRAÍDO -->
+    <div style="background:linear-gradient(135deg,#0e1220,#1a1408);border:1px solid var(--gold);border-radius:12px;padding:20px;margin-bottom:20px">
+      <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px">✅ Documento analizado — ${analyzeState.fileName}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">
+        ${[
+          {l:"Operaciones",      v:ops.length,           c:"var(--gold2)"},
+          {l:"Ganancias (1800)", v:fmt(sm.gains||0),     c:"var(--green)"},
+          {l:"Pérdidas (1800)",  v:fmt(sm.losses||0),    c:"var(--red)"},
+          {l:"Ingresos (0033)",  v:fmt(sm.staking||0),   c:"var(--blue)"},
+          {l:"Base imponible",   v:fmt(sm.base||0),       c:"var(--gold2)"},
+          {l:"Impuesto est.",    v:fmt(sm.tax||0),        c:sm.tax>0?"var(--red)":"var(--green)"},
+        ].map(x=>`<div style="background:var(--sur);border:1px solid var(--bor);border-radius:8px;padding:12px">
+          <div style="font-size:10px;color:var(--dim);font-weight:600;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">${x.l}</div>
+          <div style="font-size:18px;font-weight:700;color:${x.c}">${x.v}</div>
+        </div>`).join("")}
+      </div>
+    </div>
+
+    <!-- ALERTAS IA -->
+    ${r.alerts && r.alerts.length > 0 ? r.alerts.map(a=>`
+      <div class="alert alert-${a.type||"orange"}">
+        ${a.icon||"⚠️"} <strong>${a.title}:</strong> ${a.body}
+      </div>`).join("") : ""}
+
+    <!-- CASILLAS A RELLENAR -->
+    ${r.casillas ? `
+    <div class="card" style="border-color:var(--bor2);margin-bottom:20px">
+      <div style="font-weight:700;font-size:15px;margin-bottom:14px">📋 Casillas a rellenar en Renta Web</div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px">
+        ${r.casillas.map(c=>`
+          <div style="background:var(--sur2);border:1px solid var(--bor2);border-radius:10px;padding:14px 18px;min-width:160px">
+            <div style="margin-bottom:4px"><span class="casilla">${c.num}</span></div>
+            <div style="font-weight:600;font-size:13px;margin:4px 0">${c.label}</div>
+            <div style="font-size:18px;font-weight:700;color:${c.value>=0?"var(--green)":"var(--red)"}">${c.value>=0?"+":""}${fmt(c.value)}</div>
+            ${c.note?`<div style="font-size:11px;color:var(--mut);margin-top:4px">${c.note}</div>`:""}
+          </div>`).join("")}
+      </div>
+    </div>` : ""}
+
+    <!-- PREVIEW OPERACIONES -->
+    ${ops.length > 0 ? `
+    <div style="font-size:12px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">
+      Operaciones detectadas (${ops.length})
+    </div>
+    <div style="overflow-x:auto;margin-bottom:16px">
+      <table>
+        <thead><tr><th>Fecha</th><th>Activo</th><th>Tipo</th><th>Adquisición</th><th>Transmisión</th><th>G/P Neta</th><th>Casilla</th></tr></thead>
+        <tbody>
+          ${ops.slice(0,15).map(op=>`<tr>
+            <td style="font-size:12px;color:var(--dim)">${op.date}</td>
+            <td style="font-weight:600">${op.asset}</td>
+            <td><span style="background:var(--bd);color:var(--blue);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600">${op.typeName}</span></td>
+            <td>${op.acq>0?fmt(op.acq):"—"}</td>
+            <td>${fmt(op.trans)}</td>
+            <td style="color:${op.gain>=0?"var(--green)":"var(--red)"};font-weight:700">${op.gain>=0?"+":""}${fmt(op.gain)}</td>
+            <td><span class="casilla">${op.casilla}</span></td>
+          </tr>`).join("")}
+          ${ops.length>15?`<tr><td colspan="7" style="text-align:center;color:var(--dim);font-size:12px;padding:12px">... y ${ops.length-15} operaciones más</td></tr>`:""}
+        </tbody>
+      </table>
+    </div>` : ""}
+
+    <!-- NARRATIVE IA -->
+    ${r.narrative ? `
+    <div style="background:var(--sur2);border:1px solid var(--bor);border-radius:10px;padding:18px;margin-bottom:20px;font-size:13px;color:var(--dim);line-height:1.7">
+      <div style="font-size:11px;color:var(--gold);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🤖 Análisis IA</div>
+      ${r.narrative}
+    </div>` : ""}
+
+    <!-- ACCIONES -->
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      ${ops.length>0?`<button class="btn-primary" onclick="confirmAnalyzeImport()">✅ Importar ${ops.length} operaciones</button>`:""}
+      <button class="btn-primary" style="background:linear-gradient(135deg,#1e3a6e,#2a5298)" onclick="generatePDFReport()">📄 Descargar informe PDF</button>
+      <button class="btn-sec" onclick="resetAnalyze()">← Analizar otro documento</button>
+    </div>`;
+}
+
+// ─── FILE HANDLERS ───────────────────────────────────────
+function handleAnalyzeDrop(e) {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file) processAnalyzeFile(file);
+}
+
+function handleAnalyzeFile(input) {
+  const file = input.files[0];
+  if (file) processAnalyzeFile(file);
+}
+
+async function processAnalyzeFile(file) {
+  analyzeState.file = file;
+  analyzeState.fileName = file.name;
+  analyzeState.fileType = file.type || "";
+  analyzeState.loading = true;
+  analyzeState.error = null;
+  analyzeState.result = null;
+  render();
+
+  try {
+    const ext = file.name.split(".").pop().toLowerCase();
+
+    if (ext === "xlsx" || ext === "xls") {
+      await analyzeExcel(file);
+    } else if (ext === "csv") {
+      await analyzeTextFile(file, "csv");
+    } else if (ext === "pdf" || ["png","jpg","jpeg","webp"].includes(ext)) {
+      await analyzeBase64File(file, ext);
+    } else {
+      throw new Error("Formato no soportado. Usa PDF, CSV, Excel o imagen.");
+    }
+  } catch(err) {
+    analyzeState.loading = false;
+    analyzeState.error = err.message;
+    render();
+  }
+}
+
+async function analyzeExcel(file) {
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, {type:"array"});
+  const sheets = wb.SheetNames.map(name => {
+    const ws = wb.Sheets[name];
+    return `=== Hoja: ${name} ===\n` + XLSX.utils.sheet_to_csv(ws);
+  }).join("\n\n");
+  await callAnalyzeAPI(sheets, "excel");
+}
+
+async function analyzeTextFile(file, type) {
+  const text = await file.text();
+  await callAnalyzeAPI(text, type);
+}
+
+async function analyzeBase64File(file, ext) {
+  const b64 = await new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(",")[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+  await callAnalyzeAPI(null, ext, b64, file.type || (ext==="pdf"?"application/pdf":"image/jpeg"));
+}
+
+// ─── CLAUDE API CALL ─────────────────────────────────────
+async function callAnalyzeAPI(textContent, fileType, b64Data, mimeType) {
+  const systemPrompt = `Eres un experto en fiscalidad de criptomonedas en España (IRPF 2024).
+Tu tarea es analizar documentos fiscales de exchanges y extraer datos para la declaración de la renta.
+
+NORMATIVA APLICABLE:
+- Ganancias/pérdidas patrimoniales por transmisión → Casilla 1800 (Base del ahorro, tramos 19%-30%)
+- Rendimientos capital mobiliario (staking, lending) → Casilla 0033
+- Ganancias no derivadas de transmisión (airdrops) → Casilla 1626
+- Patrimonio en exchanges extranjeros >50.000€ → Modelo 721 obligatorio
+- Método FIFO obligatorio para activos homogéneos
+
+RESPONDE ÚNICAMENTE EN JSON con esta estructura exacta:
+{
+  "exchange": "nombre del exchange detectado",
+  "year": "año fiscal",
+  "casillas": [
+    {"num": "1800", "label": "Ganancias/pérdidas patrimoniales", "value": 2650.59, "note": "Neto de ganancias y pérdidas"},
+    {"num": "0033", "label": "Rendimientos capital mobiliario", "value": 292.93, "note": "Staking y rewards"},
+    {"num": "1626", "label": "Ganancias no derivadas transmisión", "value": 0, "note": "Airdrops"}
+  ],
+  "operations": [
+    {
+      "date": "2024-01-03",
+      "asset": "BTC",
+      "typeName": "Compraventa",
+      "type": "compraventa",
+      "acq": 7843.80,
+      "trans": 10500.10,
+      "fees": 4.70,
+      "gain": 2651.60,
+      "casilla": "1800",
+      "notes": "Importado via IA"
+    }
+  ],
+  "alerts": [
+    {"type": "orange", "icon": "⚠️", "title": "Modelo 721", "body": "Descripción del alerta"},
+    {"type": "red", "icon": "🚨", "title": "Atención", "body": "Descripción urgente"}
+  ],
+  "narrative": "Resumen en 2-3 frases del análisis fiscal en español, con recomendaciones concretas.",
+  "totalGains": 2853.14,
+  "totalLosses": -201.55,
+  "totalIncome": 292.93,
+  "totalAirdrops": 0
+}
+
+REGLAS:
+- Si ves "Realized Capital Gains" → son operaciones de casilla 1800
+- Si ves "Income" o "Rewards" o "Staking" → casilla 0033
+- Si ves "Airdrop" → casilla 1626
+- Calcula siempre la ganancia neta = transmisión - adquisición - comisiones
+- Si el patrimonio total supera 50.000€ → añade alerta de Modelo 721
+- Si hay pérdidas → añade alerta de compensación
+- Si hay operaciones DeFi sin historial de compra → añade alerta de revisión
+- NUNCA inventes datos. Si no puedes extraer un valor, pon 0.
+- El JSON debe ser válido, sin comentarios ni texto adicional fuera del JSON.`;
+
+  let userContent;
+
+  if (b64Data) {
+    // PDF o imagen
+    userContent = [
+      {
+        type: mimeType === "application/pdf" ? "document" : "image",
+        source: { type: "base64", media_type: mimeType, data: b64Data }
+      },
+      {
+        type: "text",
+        text: `Analiza este documento fiscal de criptomonedas y extrae todos los datos para la declaración IRPF española. Responde solo con JSON.`
+      }
+    ];
+  } else {
+    // CSV o Excel (texto)
+    userContent = `Analiza este informe fiscal de criptomonedas (formato: ${fileType}):\n\n${textContent.substring(0, 80000)}\n\nExtrae todos los datos para la declaración IRPF española. Responde solo con JSON.`;
+  }
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 4000,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userContent }]
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error?.message || `API error ${response.status}`);
+  }
+
+  const data = await response.json();
+  const rawText = data.content.filter(c=>c.type==="text").map(c=>c.text).join("");
+
+  // Parse JSON - strip any markdown fences
+  const clean = rawText.replace(/```json|```/g,"").trim();
+  let parsed;
+  try {
+    parsed = JSON.parse(clean);
+  } catch(e) {
+    // Try to extract JSON from text
+    const match = clean.match(/\{[\s\S]*\}/);
+    if (match) parsed = JSON.parse(match[0]);
+    else throw new Error("La IA no devolvió un formato válido. Intenta con un archivo más claro.");
+  }
+
+  // Build ops array from parsed.operations
+  const ops = (parsed.operations || []).map(op => ({
+    id: genId(),
+    type:     op.type     || "compraventa",
+    typeName: op.typeName || "Compraventa",
+    asset:    (op.asset   || "?").toUpperCase(),
+    date:     op.date     || "",
+    acq:      parseFloat(op.acq)  || 0,
+    trans:    parseFloat(op.trans)|| 0,
+    fees:     parseFloat(op.fees) || 0,
+    gain:     parseFloat(op.gain) || 0,
+    casilla:  op.casilla  || "1800",
+    notes:    op.notes    || "Importado vía IA"
+  }));
+
+  // Build summary
+  const gains   = ops.filter(o=>o.casilla==="1800"&&o.gain>0).reduce((s,o)=>s+o.gain, 0);
+  const losses  = ops.filter(o=>o.casilla==="1800"&&o.gain<0).reduce((s,o)=>s+o.gain, 0);
+  const staking = ops.filter(o=>o.casilla==="0033").reduce((s,o)=>s+o.gain, 0);
+  const airdrops= ops.filter(o=>o.casilla==="1626").reduce((s,o)=>s+o.gain, 0);
+  const base    = Math.max(gains+losses+staking+airdrops, 0);
+
+  analyzeState.result         = parsed;
+  analyzeState.previewOps     = ops;
+  analyzeState.previewSummary = { gains, losses, staking, airdrops, base, tax: calcTax(base) };
+  analyzeState.loading        = false;
+  render();
+}
+
+// ─── ACTIONS ─────────────────────────────────────────────
+function confirmAnalyzeImport() {
+  const ops = analyzeState.previewOps || [];
+  if (ops.length === 0) return;
+  state.ops = [...state.ops, ...ops];
+  const added = ops.length;
+  resetAnalyze();
+  currentTab = "home";
+  render();
+  const banner = document.createElement("div");
+  banner.style.cssText = "position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#0e3324;border:1px solid var(--green);color:var(--green);padding:12px 24px;border-radius:10px;font-weight:600;font-size:14px;z-index:999;box-shadow:0 4px 20px #00000060";
+  banner.textContent = `✅ ${added} operaciones importadas correctamente`;
+  document.body.appendChild(banner);
+  setTimeout(()=>banner.remove(), 3500);
+}
+
+function resetAnalyze() {
+  analyzeState = { file:null, fileName:"", fileType:"", loading:false, result:null, error:null, previewOps:null, previewSummary:null };
+  render();
+}
+
+// ─── PDF REPORT GENERATOR ────────────────────────────────
+function generatePDFReport() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:"portrait", unit:"mm", format:"a4" });
+  const sm = analyzeState.previewSummary || getSummary();
+  const ops = analyzeState.previewOps || state.ops;
+  const r = analyzeState.result || {};
+  const pageW = doc.internal.pageSize.getWidth();
+  const margin = 18;
+  let y = 20;
+
+  function addLine(h=5) { y += h; }
+  function checkPage(needed=20) { if (y + needed > 275) { doc.addPage(); y = 20; } }
+
+  // ── Header ──
+  doc.setFillColor(7, 10, 20);
+  doc.rect(0, 0, pageW, 40, "F");
+  doc.setTextColor(232, 192, 74);
+  doc.setFontSize(20);
+  doc.setFont("helvetica","bold");
+  doc.text("Angel Tax", margin, 18);
+  doc.setFontSize(10);
+  doc.setFont("helvetica","normal");
+  doc.setTextColor(122, 133, 168);
+  doc.text("Informe Fiscal Criptomonedas · España", margin, 26);
+  doc.text(`Ejercicio ${state.year} · Generado: ${new Date().toLocaleDateString("es-ES")}`, margin, 33);
+  if (r.exchange) doc.text(`Exchange: ${r.exchange}`, pageW - margin - 40, 26);
+
+  // Personal data block
+  if (userProfile.name || userProfile.dni) {
+    doc.setFillColor(14, 18, 32);
+    doc.rect(margin, 44, pageW-margin*2, 22, "F");
+    doc.setDrawColor(42, 82, 152);
+    doc.rect(margin, 44, pageW-margin*2, 22, "S");
+    doc.setTextColor(221, 225, 240);
+    doc.setFontSize(8);
+    doc.setFont("helvetica","bold");
+    if (userProfile.name) doc.text(`Contribuyente: ${userProfile.name}`, margin+4, 52);
+    if (userProfile.dni)  doc.text(`NIF/NIE: ${userProfile.dni}`, margin+4, 59);
+    const ccaaName = getCCAA().name;
+    if (userProfile.city || userProfile.address) {
+      doc.setFont("helvetica","normal");
+      doc.setTextColor(122, 133, 168);
+      doc.text(`${userProfile.address||""} ${userProfile.city||""} ${userProfile.cp||""}`.trim(), pageW-margin-80, 52);
+      doc.text(`C.A.: ${ccaaName}`, pageW-margin-80, 59);
+    } else {
+      doc.setFont("helvetica","normal");
+      doc.setTextColor(122, 133, 168);
+      doc.text(`C.A.: ${ccaaName}`, pageW-margin-80, 55);
+    }
+    y = 74;
+  } else {
+    y = 52;
+  }
+
+  // ── Resumen ejecutivo ──
+  doc.setFillColor(14, 18, 32);
+  doc.roundedRect(margin, y, pageW-margin*2, 52, 3, 3, "F");
+  doc.setDrawColor(201, 162, 39);
+  doc.roundedRect(margin, y, pageW-margin*2, 52, 3, 3, "S");
+
+  doc.setTextColor(201, 162, 39);
+  doc.setFontSize(9);
+  doc.setFont("helvetica","bold");
+  doc.text("RESUMEN FISCAL", margin+6, y+8);
+
+  const cols = [
+    {l:"Base Imponible",   v:fmt(sm.base),           col:margin+6},
+    {l:"Impuesto Est.",    v:fmt(sm.tax),             col:margin+46},
+    {l:"Ganancias 1800",   v:fmt(sm.gains||0),        col:margin+86},
+    {l:"Pérdidas 1800",    v:fmt(Math.abs(sm.losses||0)), col:margin+126},
+    {l:"Staking 0033",     v:fmt(sm.staking||0),      col:pageW-margin-30},
+  ];
+
+  cols.forEach(c => {
+    doc.setTextColor(122, 133, 168);
+    doc.setFontSize(7);
+    doc.setFont("helvetica","normal");
+    doc.text(c.l, c.col, y+18);
+    doc.setTextColor(232, 192, 74);
+    doc.setFontSize(11);
+    doc.setFont("helvetica","bold");
+    doc.text(c.v, c.col, y+28);
+  });
+
+  // Tramo aplicable
+  const bracket = BRACKETS.find(b => sm.base <= b.max);
+  if (bracket) {
+    doc.setTextColor(122, 133, 168);
+    doc.setFontSize(8);
+    doc.setFont("helvetica","normal");
+    doc.text(`Tipo marginal aplicable: ${(bracket.rate*100).toFixed(0)}%`, margin+6, y+42);
+  }
+  y += 62;
+
+  // ── Casillas ──
+  if (r.casillas && r.casillas.length > 0) {
+    doc.setTextColor(221, 225, 240);
+    doc.setFontSize(11);
+    doc.setFont("helvetica","bold");
+    doc.text("CASILLAS A RELLENAR EN RENTA WEB", margin, y);
+    y += 8;
+
+    r.casillas.forEach(c => {
+      checkPage(14);
+      doc.setFillColor(22, 28, 46);
+      doc.rect(margin, y, pageW-margin*2, 12, "F");
+      doc.setTextColor(77, 130, 232);
+      doc.setFontSize(9);
+      doc.setFont("helvetica","bold");
+      doc.text(`Casilla ${c.num}`, margin+4, y+8);
+      doc.setTextColor(122, 133, 168);
+      doc.setFont("helvetica","normal");
+      doc.text(c.label, margin+30, y+8);
+      doc.setTextColor(c.value >= 0 ? 61 : 224, c.value >= 0 ? 186 : 82, c.value >= 0 ? 122 : 82);
+      doc.setFont("helvetica","bold");
+      doc.text(fmt(c.value), pageW-margin-30, y+8, {align:"right"});
+      y += 14;
+    });
+    y += 6;
+  }
+
+  // ── Alertas ──
+  if (r.alerts && r.alerts.length > 0) {
+    checkPage(10);
+    doc.setTextColor(221, 225, 240);
+    doc.setFontSize(11);
+    doc.setFont("helvetica","bold");
+    doc.text("AVISOS IMPORTANTES", margin, y);
+    y += 8;
+
+    r.alerts.forEach(a => {
+      checkPage(18);
+      const isRed = a.type==="red";
+      doc.setFillColor(isRed?59:42, isRed?18:26, isRed?18:8);
+      doc.rect(margin, y, pageW-margin*2, 14, "F");
+      doc.setDrawColor(isRed?224:232, isRed?82:148, isRed?82:58);
+      doc.line(margin, y, margin, y+14);
+      doc.setTextColor(221, 225, 240);
+      doc.setFontSize(8);
+      doc.setFont("helvetica","bold");
+      doc.text(`${a.icon||"⚠"} ${a.title}`, margin+4, y+6);
+      doc.setFont("helvetica","normal");
+      doc.setTextColor(122, 133, 168);
+      const bodyLines = doc.splitTextToSize(a.body, pageW-margin*2-8);
+      doc.text(bodyLines[0]||"", margin+4, y+11);
+      y += 17;
+    });
+    y += 4;
+  }
+
+  // ── Narrative ──
+  if (r.narrative) {
+    checkPage(24);
+    doc.setFillColor(14, 18, 32);
+    doc.rect(margin, y, pageW-margin*2, 22, "F");
+    doc.setTextColor(201, 162, 39);
+    doc.setFontSize(8);
+    doc.setFont("helvetica","bold");
+    doc.text("ANÁLISIS IA", margin+4, y+7);
+    doc.setTextColor(122, 133, 168);
+    doc.setFont("helvetica","normal");
+    const lines = doc.splitTextToSize(r.narrative, pageW-margin*2-8);
+    doc.text(lines.slice(0,2), margin+4, y+13);
+    y += 28;
+  }
+
+  // ── Operaciones (tabla) ──
+  if (ops.length > 0) {
+    checkPage(20);
+    doc.setTextColor(221, 225, 240);
+    doc.setFontSize(11);
+    doc.setFont("helvetica","bold");
+    doc.text(`DETALLE DE OPERACIONES (${ops.length})`, margin, y);
+    y += 8;
+
+    // Table header
+    doc.setFillColor(30, 37, 64);
+    doc.rect(margin, y, pageW-margin*2, 8, "F");
+    doc.setTextColor(122, 133, 168);
+    doc.setFontSize(7);
+    doc.setFont("helvetica","bold");
+    ["Fecha","Activo","Tipo","Adquis.","Transmis.","G/P Neta","Casilla"].forEach((h,i)=>{
+      const xs = [margin+2, margin+22, margin+36, margin+60, margin+85, margin+110, margin+136];
+      doc.text(h, xs[i], y+5.5);
+    });
+    y += 10;
+
+    ops.slice(0, 50).forEach((op, idx) => {
+      checkPage(8);
+      if (idx % 2 === 0) {
+        doc.setFillColor(22, 28, 46);
+        doc.rect(margin, y-1, pageW-margin*2, 8, "F");
+      }
+      doc.setFontSize(7);
+      doc.setFont("helvetica","normal");
+      doc.setTextColor(122, 133, 168);
+      doc.text(op.date||"—", margin+2, y+4.5);
+      doc.setTextColor(221, 225, 240);
+      doc.text((op.asset||"").substring(0,8), margin+22, y+4.5);
+      doc.setTextColor(77, 130, 232);
+      doc.text((op.typeName||"").substring(0,12), margin+36, y+4.5);
+      doc.setTextColor(122, 133, 168);
+      doc.text(op.acq>0?fmt(op.acq).replace("€",""):"—", margin+60, y+4.5);
+      doc.text(fmt(op.trans).replace("€",""), margin+85, y+4.5);
+      doc.setTextColor(op.gain>=0?61:224, op.gain>=0?186:82, op.gain>=0?122:82);
+      doc.setFont("helvetica","bold");
+      doc.text((op.gain>=0?"+":"")+fmt(op.gain).replace("€",""), margin+110, y+4.5);
+      doc.setTextColor(77, 130, 232);
+      doc.setFont("helvetica","normal");
+      doc.text(op.casilla||"—", margin+136, y+4.5);
+      y += 8;
+    });
+
+    if (ops.length > 50) {
+      y += 4;
+      doc.setTextColor(122, 133, 168);
+      doc.setFontSize(8);
+      doc.text(`... y ${ops.length-50} operaciones adicionales`, margin, y);
+      y += 6;
+    }
+  }
+
+  // ── Footer ──
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFillColor(7, 10, 20);
+    doc.rect(0, 285, pageW, 12, "F");
+    doc.setTextColor(61, 74, 110);
+    doc.setFontSize(7);
+    doc.setFont("helvetica","normal");
+    doc.text("Angel Tax · github.com/kaizenbnb/Angel-TAX · Herramienta orientativa, consulta un asesor fiscal certificado", margin, 291);
+    doc.text(`${i} / ${totalPages}`, pageW-margin, 291, {align:"right"});
+  }
+
+  doc.save(`AngelTax_Informe_${state.year}.pdf`);
+}
+
+// ═══════════════════════════════════════════
+// PROFILE MODAL
+// ═══════════════════════════════════════════
+function renderProfileModal() {
+  return `
+  <div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeProfile()">
+    <div style="background:var(--sur);border:1px solid var(--bor2);border-radius:16px;padding:32px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+        <div>
+          <div class="ff-serif" style="font-size:20px;color:var(--text)">👤 Tu Perfil Fiscal</div>
+          <div style="font-size:12px;color:var(--dim);margin-top:3px">Datos para el informe — se quedan en tu navegador</div>
+        </div>
+        <button onclick="closeProfile()" class="btn-icon" style="font-size:20px;color:var(--dim)">✕</button>
+      </div>
+
+      <div class="alert alert-gold" style="margin-bottom:20px">
+        🔒 Estos datos <strong>solo se usan para generar tu informe PDF</strong>. Nunca salen de tu dispositivo.
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Nombre completo</label>
+          <input class="form-input" id="p-name" placeholder="Tu nombre y apellidos" value="${userProfile.name}"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">NIF / NIE / DNI</label>
+          <input class="form-input" id="p-dni" placeholder="12345678A" value="${userProfile.dni}"/>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Dirección</label>
+        <input class="form-input" id="p-address" placeholder="Calle, número, piso..." value="${userProfile.address}"/>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Ciudad</label>
+          <input class="form-input" id="p-city" placeholder="Madrid" value="${userProfile.city}"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Código postal</label>
+          <input class="form-input" id="p-cp" placeholder="28001" value="${userProfile.cp}"/>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Comunidad Autónoma</label>
+        <select class="form-input" id="p-ccaa">
+          ${CCAA.map(c=>`<option value="${c.id}" ${userProfile.ccaa===c.id?"selected":""}>${c.name}</option>`).join("")}
+        </select>
+        <div class="form-hint" id="ccaa-hint" style="color:${getCCAA().patrimonio?"var(--orange)":"var(--green)"}">
+          ${getCCAA().note}
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:8px">
+        <button class="btn-primary" onclick="saveProfile()">💾 Guardar perfil</button>
+        <button class="btn-sec" onclick="closeProfile()">Cancelar</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function openProfile() { showProfileModal = true; render(); }
+function closeProfile() { showProfileModal = false; render(); }
+
+function saveProfile() {
+  userProfile.name    = document.getElementById("p-name")?.value    || "";
+  userProfile.dni     = document.getElementById("p-dni")?.value     || "";
+  userProfile.address = document.getElementById("p-address")?.value || "";
+  userProfile.city    = document.getElementById("p-city")?.value    || "";
+  userProfile.cp      = document.getElementById("p-cp")?.value      || "";
+  userProfile.ccaa    = document.getElementById("p-ccaa")?.value    || "madrid";
+  showProfileModal = false;
+  render();
+  const banner = document.createElement("div");
+  banner.style.cssText = "position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#0e3324;border:1px solid var(--green);color:var(--green);padding:12px 24px;border-radius:10px;font-weight:600;font-size:14px;z-index:999";
+  banner.textContent = "✅ Perfil guardado";
+  document.body.appendChild(banner);
+  setTimeout(()=>banner.remove(), 2500);
+}
+
 function renderPrivacyBar() {
   return `<div class="privacy-bar">
     <div class="privacy-dot"></div>
@@ -1214,5 +2051,7 @@ function attachEvents() {
 // ═══════════════════════════════════════════
 render();
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>
 </html>
