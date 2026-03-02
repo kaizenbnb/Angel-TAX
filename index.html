@@ -112,7 +112,7 @@
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
-let state = { ops: [], year: String(new Date().getFullYear() - 1) };
+let state = { ops: [], lots: [], year: String(new Date().getFullYear() - 1) };
 let currentTab = "home";
 let currentOpType = null;
 let formData = {};
@@ -172,6 +172,7 @@ const BRACKETS = [
 ];
 
 const OPS = [
+  {id:"compra",      icon:"🛍️", name:"Compra",                 desc:"Compra de cripto por € o fiat — crea lote FIFO",    casilla:"—",             isLot:true  },
   {id:"compraventa", icon:"💱", name:"Compraventa",          desc:"Venta de cripto por € o fiat",                     casilla:"1800",          isIncome:false},
   {id:"permuta",     icon:"🔄", name:"Permuta / DEX Swap",   desc:"Intercambio cripto por cripto. Cada swap tributa.", casilla:"1800",          isIncome:false},
   {id:"pago",        icon:"🛒", name:"Pago con cripto",       desc:"Usaste cripto para comprar algo",                  casilla:"1800",          isIncome:false},
@@ -666,13 +667,17 @@ function renderHome(sm) {
       <div class="ff-serif" style="font-size:17px;margin-bottom:16px">Operaciones — Ejercicio ${state.year}</div>
       <div style="overflow-x:auto">
         <table>
-          <thead><tr><th>Fecha</th><th>Tipo</th><th>Activo</th><th>Adquisición</th><th>Transmisión</th><th>G/P Neta</th><th>Casilla</th><th></th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Activo</th><th>Qty</th><th>Adquisición</th><th>Transmisión</th><th>G/P Neta</th><th>Casilla</th><th></th></tr></thead>
           <tbody>
             ${state.ops.map(op=>`
               <tr>
                 <td class="c-dim" style="font-size:12px">${op.date}</td>
-                <td><span style="background:var(--bd);color:var(--blue);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600">${op.typeName}</span></td>
+                <td>
+                  <span style="background:var(--bd);color:var(--blue);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600">${op.typeName}</span>
+                  ${op.fifoMode?`<span style="background:#0a1a2a;color:var(--blue);border:1px solid var(--blue);border-radius:8px;padding:1px 6px;font-size:10px;margin-left:4px">FIFO</span>`:""}
+                </td>
                 <td class="fw7">${op.asset}</td>
+                <td class="c-dim" style="font-size:12px">${op.qty?fmtQty(op.qty):"—"}</td>
                 <td>${["compraventa","permuta","pago","nft","lp_retiro","liquidacion","envio_regalo"].includes(op.type)?fmt(op.acq):"—"}</td>
                 <td>${fmt(op.trans)}</td>
                 <td class="${op.gain>=0?"c-green":"c-red"} fw7">${op.gain>=0?"+":""}${fmt(op.gain)}</td>
@@ -707,6 +712,10 @@ function renderAdd() {
 
   const op = OPS.find(o=>o.id===currentOpType);
   const isTransmit = ["compraventa","permuta","pago","nft","lp_retiro","liquidacion","envio_regalo"].includes(currentOpType);
+  const isFifoMode = isTransmit && formData.asset && hasFifoLots(formData.asset);
+  const isLotOp    = op?.isLot;
+  const availQty   = isTransmit && formData.asset ? availableQty(formData.asset) : 0;
+  const assetUpper = (formData.asset||"").toUpperCase();
 
   return `<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:12px">
@@ -731,7 +740,7 @@ function renderAdd() {
     <div class="form-grid">
       <div class="form-group">
         <label class="form-label">Criptomoneda / Activo</label>
-        <input class="form-input" id="f-asset" placeholder="BTC, ETH, SOL..." value="${formData.asset||""}"/>
+        <input class="form-input" id="f-asset" placeholder="BTC, ETH, SOL..." value="${formData.asset||""}" onchange="saveFormData();calcResult=null;render()"/>
       </div>
       <div class="form-group">
         <label class="form-label">Fecha de operación</label>
@@ -739,12 +748,50 @@ function renderAdd() {
       </div>
     </div>
 
-    ${isTransmit?`
+    ${isLotOp ? `
+    ${isFifoMode || availQty > 0 ? `<div class="alert alert-gold">🔍 <strong>FIFO activo para ${assetUpper}:</strong> Tienes ${fmtQty(availQty)} ${assetUpper} en lotes disponibles.</div>` : ""}
+    <div class="form-grid3">
+      <div class="form-group">
+        <label class="form-label">Cantidad comprada (unidades)</label>
+        <input type="number" class="form-input" id="f-qty" placeholder="0.00000000" step="any" value="${formData.qty||""}"/>
+        <div class="form-hint">Ej: 0.05 BTC, 2.5 ETH</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Total pagado (€)</label>
+        <input type="number" class="form-input" id="f-trans" placeholder="0.00" value="${formData.trans||""}"/>
+        <div class="form-hint">Precio total de compra en €</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Comisiones (€)</label>
+        <input type="number" class="form-input" id="f-fees" placeholder="0.00" value="${formData.fees||""}"/>
+        <div class="form-hint">Se suman al coste de adquisición (DGT)</div>
+      </div>
+    </div>
+    ` : isFifoMode ? `
+    <div class="alert alert-blue">🤖 <strong>Modo FIFO automático:</strong> Tienes <strong>${fmtQty(availQty)} ${assetUpper}</strong> en lotes. Introduce la cantidad vendida y el precio — el coste de adquisición se calcula solo.</div>
+    <div class="form-grid3">
+      <div class="form-group">
+        <label class="form-label">Cantidad vendida (unidades)</label>
+        <input type="number" class="form-input" id="f-qty" placeholder="0.00000000" step="any" value="${formData.qty||""}"/>
+        <div class="form-hint">Disponible: ${fmtQty(availQty)} ${assetUpper}</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Precio unitario de venta (€)</label>
+        <input type="number" class="form-input" id="f-price" placeholder="0.00" step="any" value="${formData.price||""}"/>
+        <div class="form-hint">Precio por unidad en €</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Comisiones (€)</label>
+        <input type="number" class="form-input" id="f-fees" placeholder="0.00" value="${formData.fees||""}"/>
+        <div class="form-hint">Gas fees + fees del exchange</div>
+      </div>
+    </div>
+    ` : isTransmit ? `
     <div class="form-grid3">
       <div class="form-group">
         <label class="form-label">Valor adquisición (€)</label>
         <input type="number" class="form-input" id="f-acq" placeholder="0.00" value="${formData.acq||""}"/>
-        <div class="form-hint">Precio de compra en €</div>
+        <div class="form-hint">Precio de compra en € <span style="color:var(--orange)">· Sin lotes FIFO — modo manual</span></div>
       </div>
       <div class="form-group">
         <label class="form-label">Valor transmisión (€)</label>
@@ -756,12 +803,14 @@ function renderAdd() {
         <input type="number" class="form-input" id="f-fees" placeholder="0.00" value="${formData.fees||""}"/>
         <div class="form-hint">Gas fees + fees del exchange</div>
       </div>
-    </div>`:`
+    </div>
+    ` : `
     <div class="form-group">
       <label class="form-label">Valor de mercado al recibir (€)</label>
       <input type="number" class="form-input" id="f-trans" placeholder="0.00" value="${formData.trans||""}"/>
       <div class="form-hint">Consulta CoinGecko/CoinMarketCap histórico para el valor exacto en esa fecha</div>
-    </div>`}
+    </div>
+    `}
 
     <div class="form-group">
       <label class="form-label">Notas (opcional)</label>
@@ -769,7 +818,26 @@ function renderAdd() {
     </div>
 
     ${!calcResult?`<button class="btn-primary" onclick="calculate()">🧮 Calcular impacto fiscal</button>`:`
-      ${calcResult.noTax ? `
+      ${calcResult.error ? `
+      <div class="alert alert-red">⚠️ ${calcResult.error}</div>
+      <button class="btn-primary" onclick="calculate()">🧮 Calcular</button>
+      ` : calcResult.isLot ? `
+      <div class="result-box" style="border-color:var(--blue)">
+        <div style="text-align:center;padding:8px 0 4px">
+          <div style="font-size:28px;margin-bottom:6px">🛍️</div>
+          <div style="font-weight:700;color:var(--blue);font-size:15px">Lote FIFO listo para registrar</div>
+        </div>
+        <div class="result-row"><span class="c-dim">Activo</span><span class="fw7">${(formData.asset||"").toUpperCase()}</span></div>
+        <div class="result-row"><span class="c-dim">Cantidad</span><span class="fw7">${fmtQty(calcResult.qty)} ${(formData.asset||"").toUpperCase()}</span></div>
+        <div class="result-row"><span class="c-dim">Precio/unidad</span><span class="fw7 c-gold">${fmt(calcResult.pricePerUnit)} €</span></div>
+        <div class="result-row"><span class="c-dim">Coste total</span><span class="fw7">${fmt(calcResult.total)} € + ${fmt(calcResult.fees)} € fees = ${fmt(calcResult.total + calcResult.fees)} €</span></div>
+        <div class="result-row"><span class="c-dim">Evento imponible</span><span style="color:var(--green);font-weight:700">Ninguno — compra no tributa</span></div>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <button class="btn-primary" onclick="addOperation()">✅ Añadir lote FIFO</button>
+        <button class="btn-sec" onclick="clearResult()">✏️ Editar</button>
+      </div>
+      ` : calcResult.noTax ? `
       <div class="result-box" style="border-color:var(--green)">
         <div style="text-align:center;padding:12px 0">
           <div style="font-size:32px;margin-bottom:8px">✅</div>
@@ -785,13 +853,27 @@ function renderAdd() {
         <button class="btn-sec" onclick="clearResult()">✏️ Editar datos</button>
       </div>
       ` : `
+      ${calcResult.isFifoMode && calcResult.fifo ? `
+      <div class="result-box" style="border-color:var(--blue);margin-bottom:8px">
+        <div style="font-weight:700;font-size:12px;color:var(--blue);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">🤖 Desglose FIFO automático</div>
+        ${calcResult.fifo.lotsUsed.map(l=>`
+        <div class="result-row" style="font-size:12px">
+          <span class="c-dim">Lote ${l.lotDate}</span>
+          <span>${fmtQty(l.qty)} u × ${fmt(l.pricePerUnit)} €/u = <strong class="c-gold">${fmt(l.acqCost)} €</strong></span>
+        </div>`).join("")}
+        <div style="border-top:1px solid var(--bd);margin:8px 0"></div>
+        <div class="result-row"><span class="c-dim">Coste adquisición FIFO</span><span class="fw7 c-gold">${fmt(calcResult.acqFifo)} €</span></div>
+        <div class="result-row"><span class="c-dim">Valor de venta</span><span class="fw7">${fmt(calcResult.trans)} €</span></div>
+        ${calcResult.fifo.warning ? `<div class="alert alert-orange" style="margin-top:8px;font-size:12px">${calcResult.fifo.warning}</div>` : ""}
+      </div>
+      ` : ""}
       <div class="result-box">
         <div class="result-row">
           <span class="c-dim">Casilla IRPF</span>
           <span class="casilla${op.isGeneral?" casilla-gold":""}">${calcResult.cas}</span>
         </div>
         <div class="result-row">
-          <span class="c-dim">Base imponible</span>
+          <span class="c-dim">G/P Neta</span>
           <span class="${calcResult.gain>=0?"c-green":"c-red"} fw7">${calcResult.gain>=0?"+":""}${fmt(calcResult.gain)}</span>
         </div>
         <div class="result-row">
@@ -811,7 +893,7 @@ function renderAdd() {
 }
 
 function renderReport(sm) {
-  if (state.ops.length === 0) {
+  if (state.ops.length === 0 && state.lots.length === 0) {
     return `<div class="empty">
       <div class="empty-icon">📄</div>
       <div class="ff-serif" style="font-size:20px;color:var(--dim)">Sin operaciones todavía</div>
@@ -820,7 +902,60 @@ function renderReport(sm) {
     </div>`;
   }
 
-  return `
+  // ── Inventario de lotes FIFO ──
+  const lotsBlock = state.lots.length > 0 ? `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div class="card-title">🛍️ Inventario de Lotes FIFO</div>
+          <div class="card-sub">${state.lots.length} lote${state.lots.length!==1?"s":""} registrados · Método FIFO (AEAT obligatorio)</div>
+        </div>
+        <button class="btn-primary" onclick="goTab('add');selectOpType('compra')">+ Nueva compra</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Fecha</th><th>Activo</th><th>Qty comprada</th><th>Qty disponible</th><th>Precio/u</th><th>Coste total</th><th>Estado</th><th></th></tr></thead>
+          <tbody>
+            ${state.lots.map(l=>{
+              const pct = l.qty > 0 ? (l.qtyRemaining / l.qty * 100) : 0;
+              const consumed = l.qty - l.qtyRemaining;
+              const statusColor = pct===0?"var(--red)":pct===100?"var(--green)":"var(--orange)";
+              const statusLabel = pct===0?"Consumido":pct===100?"Disponible":"Parcial";
+              return `<tr>
+                <td class="c-dim" style="font-size:12px">${l.date}</td>
+                <td class="fw7">${l.asset}</td>
+                <td>${fmtQty(l.qty)}</td>
+                <td style="color:${statusColor};font-weight:700">${fmtQty(l.qtyRemaining)}</td>
+                <td class="c-gold">${fmt(l.pricePerUnit)} €</td>
+                <td>${fmt(l.totalEur + l.fees)} €</td>
+                <td><span style="background:var(--bd);color:${statusColor};border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">${statusLabel}</span></td>
+                <td><button class="btn-icon" onclick="deleteLot('${l.id}')">🗑</button></td>
+              </tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+      ${state.lots.some(l=>l.qtyRemaining>0) ? `
+      <div style="margin-top:12px;font-size:12px;color:var(--mut)">
+        ${[...new Set(state.lots.map(l=>l.asset))].map(asset=>{
+          const qty = availableQty(asset);
+          const costBasis = state.lots.filter(l=>l.asset===asset&&l.qtyRemaining>0).reduce((s,l)=>s+l.qtyRemaining*l.pricePerUnit,0);
+          return `<span style="background:var(--sur2);border:1px solid var(--bor);border-radius:8px;padding:4px 10px;margin-right:6px;display:inline-block;margin-bottom:4px">
+            <strong>${asset}</strong>: ${fmtQty(qty)} u disponibles · coste base ${fmt(costBasis)} €
+          </span>`;
+        }).join("")}
+      </div>` : ""}
+    </div>` : "";
+
+  if (state.ops.length === 0) {
+    return lotsBlock + `<div class="empty" style="margin-top:0">
+      <div class="empty-icon">📄</div>
+      <div class="ff-serif" style="font-size:18px;color:var(--dim)">Sin operaciones de venta todavía</div>
+      <div style="font-size:13px;color:var(--mut);margin-top:8px;margin-bottom:24px">Tus lotes están registrados. Añade ventas para generar el informe fiscal.</div>
+    </div>`;
+  }
+
+  return lotsBlock + `
     <div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
       <div>
         <div class="card-title">📄 Informe Fiscal ${state.year}</div>
@@ -2087,6 +2222,96 @@ function selectOpType(id) {
   render();
 }
 
+// ═══════════════════════════════════════════
+// FIFO ENGINE
+// ═══════════════════════════════════════════
+
+function addLot(asset, date, qty, totalEur, fees) {
+  // Cost basis includes purchase fees (criterio DGT: comisiones son mayor valor de adquisición)
+  state.lots.push({
+    id: genId(),
+    asset: asset.toUpperCase(),
+    date,
+    qty,
+    qtyRemaining: qty,
+    pricePerUnit: qty > 0 ? (totalEur + fees) / qty : 0,
+    totalEur,
+    fees
+  });
+  // Keep lots sorted oldest-first for display
+  state.lots.sort((a,b) => a.date.localeCompare(b.date));
+}
+
+function getLotsForAsset(asset) {
+  return state.lots
+    .filter(l => l.asset === asset.toUpperCase() && l.qtyRemaining > 0)
+    .sort((a,b) => a.date.localeCompare(b.date));
+}
+
+function fifoCalc(asset, qtySold, saleFees) {
+  const lots = getLotsForAsset(asset);
+  if (lots.length === 0) return null; // No lots → fallback a modo manual
+
+  let remaining = qtySold;
+  let totalAcq  = 0;
+  const lotsUsed = [];
+
+  for (const lot of lots) {
+    if (remaining <= 0) break;
+    const take    = Math.min(remaining, lot.qtyRemaining);
+    const acqCost = take * lot.pricePerUnit;
+    totalAcq += acqCost;
+    lotsUsed.push({ lotId: lot.id, qty: take, pricePerUnit: lot.pricePerUnit, acqCost, lotDate: lot.date });
+    remaining -= take;
+  }
+
+  const warning = remaining > 0
+    ? `⚠️ Solo hay ${fmtQty(qtySold - remaining)} ${asset.toUpperCase()} en lotes FIFO — faltan ${fmtQty(remaining)} unidades sin coste de adquisición conocido`
+    : null;
+
+  return { totalAcq, lotsUsed, qtyFound: qtySold - remaining, warning };
+}
+
+// Preview FIFO without consuming (for calculate())
+function fifoPreview(asset, qtySold) {
+  return fifoCalc(asset, qtySold, 0);
+}
+
+// Consume lots after confirmed addOperation
+function consumeLots(lotsUsed) {
+  for (const used of lotsUsed) {
+    const lot = state.lots.find(l => l.id === used.lotId);
+    if (lot) lot.qtyRemaining = Math.max(0, lot.qtyRemaining - used.qty);
+  }
+}
+
+function deleteLot(id) {
+  state.lots = state.lots.filter(l => l.id !== id);
+  render();
+}
+
+// Format qty with up to 8 decimals, trimming trailing zeros
+function fmtQty(n) {
+  if (!n && n !== 0) return "—";
+  const s = parseFloat(n.toFixed(8)).toString();
+  return s;
+}
+
+// Total available qty for an asset
+function availableQty(asset) {
+  return state.lots
+    .filter(l => l.asset === asset.toUpperCase())
+    .reduce((s,l) => s + l.qtyRemaining, 0);
+}
+
+function isFifoOp(type) {
+  return ["compraventa","permuta","pago","nft","lp_retiro","liquidacion","envio_regalo"].includes(type);
+}
+
+function hasFifoLots(asset) {
+  return asset && getLotsForAsset(asset).length > 0;
+}
+
 function saveFormData() {
   const get = id => { const el = document.getElementById(id); return el ? el.value : ""; };
   formData.asset = get("f-asset");
@@ -2095,14 +2320,16 @@ function saveFormData() {
   formData.trans = get("f-trans");
   formData.fees  = get("f-fees");
   formData.notes = get("f-notes");
+  formData.qty   = get("f-qty");   // FIFO: cantidad de unidades
+  formData.price = get("f-price"); // FIFO: precio unitario de venta
 }
+
+
 
 function calculate() {
   saveFormData();
   const op    = OPS.find(o=>o.id===currentOpType);
-  const acq   = parseFloat(formData.acq)   || 0;
-  const trans = parseFloat(formData.trans)  || 0;
-  const fees  = parseFloat(formData.fees)   || 0;
+  const fees  = parseFloat(formData.fees)  || 0;
 
   // Envío entre propias wallets → no tributa
   if (op?.noTax) {
@@ -2111,9 +2338,19 @@ function calculate() {
     return;
   }
 
-  // Operaciones con G/P patrimonial: trans - acq - fees
-  const isGP = ["compraventa","permuta","pago","nft","lp_retiro","liquidacion","envio_regalo"].includes(currentOpType);
-  const gain  = isGP ? trans - acq - fees : trans;
+  // ── Compra → crea lote, no evento imponible ──
+  if (op?.isLot) {
+    const qty   = parseFloat(formData.qty)   || 0;
+    const total = parseFloat(formData.trans) || 0;
+    if (qty <= 0 || total <= 0) {
+      calcResult = { error: "Introduce cantidad y precio total" };
+      render();
+      return;
+    }
+    calcResult = { isLot: true, qty, total, fees, pricePerUnit: (total + fees) / qty };
+    render();
+    return;
+  }
 
   // Casilla según tipo
   const cas = (["staking","lending","lp_fees"].includes(currentOpType)) ? "0033"
@@ -2121,7 +2358,38 @@ function calculate() {
             : currentOpType==="mineria"   ? "Act.Económica"
             : "1800";
 
-  calcResult = { gain, cas, tax: calcTax(Math.max(gain,0)) };
+  // ── Modo FIFO ──
+  if (isFifoOp(currentOpType) && formData.asset && hasFifoLots(formData.asset)) {
+    const qty    = parseFloat(formData.qty)   || 0;
+    const price  = parseFloat(formData.price) || 0; // precio unitario venta
+    const trans  = qty > 0 && price > 0 ? qty * price : parseFloat(formData.trans) || 0;
+
+    if (qty <= 0 || trans <= 0) {
+      calcResult = { error: "Introduce cantidad y precio de venta" };
+      render();
+      return;
+    }
+
+    const fifo = fifoPreview(formData.asset, qty);
+    const gain = trans - (fifo ? fifo.totalAcq : 0) - fees;
+
+    calcResult = {
+      gain, cas, tax: calcTax(Math.max(gain, 0)),
+      fifo, qty, trans,
+      acqFifo: fifo ? fifo.totalAcq : 0,
+      isFifoMode: true
+    };
+    render();
+    return;
+  }
+
+  // ── Modo manual (fallback o ingresos) ──
+  const acq   = parseFloat(formData.acq)   || 0;
+  const trans = parseFloat(formData.trans) || 0;
+  const isGP  = isFifoOp(currentOpType);
+  const gain  = isGP ? trans - acq - fees : trans;
+
+  calcResult = { gain, cas, tax: calcTax(Math.max(gain, 0)) };
   render();
 }
 
@@ -2129,15 +2397,45 @@ function clearResult() { calcResult = null; render(); }
 
 function addOperation() {
   if (!calcResult) return;
-  if (calcResult.noTax) return; // envío entre propias wallets — no genera hecho imponible
+  if (calcResult.noTax) return;
+  if (calcResult.error) return;
+
   const op = OPS.find(o=>o.id===currentOpType);
+
+  // ── Compra → crear lote FIFO ──
+  if (calcResult.isLot) {
+    addLot(
+      formData.asset || "—",
+      formData.date  || new Date().toISOString().slice(0,10),
+      calcResult.qty,
+      calcResult.total,
+      calcResult.fees
+    );
+    currentOpType = null; formData = {}; calcResult = null;
+    goTab("home");
+    return;
+  }
+
+  // ── Venta en modo FIFO → consumir lotes ──
+  if (calcResult.isFifoMode && calcResult.fifo) {
+    consumeLots(calcResult.fifo.lotsUsed);
+  }
+
+  // ── Guardar operación ──
   state.ops.push({
     id: genId(), type: currentOpType, typeName: op.name,
-    asset: formData.asset||"—", date: formData.date||"—",
-    acq: parseFloat(formData.acq)||0, trans: parseFloat(formData.trans)||0,
-    fees: parseFloat(formData.fees)||0, gain: calcResult.gain, casilla: calcResult.cas,
-    notes: formData.notes||""
+    asset:   formData.asset||"—",
+    date:    formData.date||"—",
+    qty:     calcResult.qty || (parseFloat(formData.qty)||0),
+    acq:     calcResult.isFifoMode ? calcResult.acqFifo : (parseFloat(formData.acq)||0),
+    trans:   calcResult.isFifoMode ? calcResult.trans : (parseFloat(formData.trans)||0),
+    fees:    parseFloat(formData.fees)||0,
+    gain:    calcResult.gain,
+    casilla: calcResult.cas,
+    fifoMode: calcResult.isFifoMode || false,
+    notes:   formData.notes||""
   });
+
   currentOpType = null; formData = {}; calcResult = null;
   goTab("home");
 }
