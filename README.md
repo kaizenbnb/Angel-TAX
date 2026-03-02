@@ -1,211 +1,246 @@
-# 🛡️ Angel Tax — Fiscalidad Cripto España
+# 😇 Angel Tax
 
-> **La herramienta definitiva para que cualquier persona con criptomonedas en España duerma tranquila con su fiscalidad.**
+**Tu fiscalidad cripto, clara y bajo control.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Privacy First](https://img.shields.io/badge/Privacy-100%25%20Local-green)](https://github.com/angel-tax/angel-tax)
-[![España](https://img.shields.io/badge/País-España-red)](https://sede.agenciatributaria.gob.es)
-[![Ejercicio](https://img.shields.io/badge/Ejercicio-2024%2F2025-blue)](https://github.com/angel-tax/angel-tax)
+> Herramienta web open-source, gratuita y 100% local para declarar criptomonedas en España (IRPF).
 
----
-
-## ✨ ¿Qué es Angel Tax?
-
-Angel Tax es una aplicación web **open source**, **gratuita** y **100% local** (sin servidores, sin cuentas, sin envío de datos) que ayuda a cualquier persona en España a entender y gestionar su fiscalidad en criptomonedas.
-
-Está diseñada como si fuera tu propio asesor fiscal experto en cripto, guiándote paso a paso por cada tipo de operación, calculando tu base imponible y diciéndote exactamente **en qué casilla de la Renta** debes declarar cada cosa.
-
-### ¿Por qué Angel Tax?
-
-Las criptomonedas tienen una fiscalidad compleja en España con múltiples casuísticas:
-- 🔄 Una permuta BTC→ETH **también tributa** (¡aunque no hayas convertido a euros!)
-- 📈 El staking va a una casilla diferente que las ventas
-- 🎁 Los airdrops van a una tercera casilla distinta
-- 🌍 Si tienes >50.000€ en exchanges extranjeros, debes el Modelo 721
-- ⛏️ Si minas, tributas en base general, no base del ahorro
-
-Angel Tax te lo explica todo de forma clara, te hace las preguntas correctas y calcula tu fiscalidad automáticamente.
+[![Live Demo](https://img.shields.io/badge/🌐_Demo_Live-Angel_Tax-F0B90B?style=for-the-badge)](https://kaizenbnb.github.io/Angel-TAX)
+[![License: MIT](https://img.shields.io/badge/License-MIT-white?style=for-the-badge)](LICENSE)
+[![Open Source](https://img.shields.io/badge/Open-Source-0B0E11?style=for-the-badge&logo=github)](https://github.com/kaizenbnb/Angel-TAX)
 
 ---
 
-## 🔒 Privacidad — Principio Fundamental
+## ¿Por qué existe Angel Tax?
 
-**Angel Tax nunca envía tus datos a ningún servidor.**
+Declarar criptomonedas en España se ha convertido en una fuente constante de estrés.  
+No porque la gente quiera hacerlo mal, sino porque nadie explica bien qué va dónde, qué tributa y qué no, y qué espera realmente Hacienda.
 
-Toda la lógica de cálculo, todos tus datos de operaciones, y todos tus informes se generan y almacenan **exclusivamente en tu navegador**. No hay backend, no hay base de datos, no hay analytics.
+Si usas criptomonedas, probablemente te suena esto:
 
-Para borrar completamente todos tus datos: borra el historial y los datos del sitio en tu navegador.
+- *"¿Tengo que declarar aunque no haya pasado a euros?"*
+- *"¿Una permuta también tributa?"*
+- *"¿El staking va como ganancia o como rendimiento?"*
+- *"¿Esto va en la 1800… o en otra casilla?"*
+- *"¿Me va a salir una paralela si me equivoco?"*
 
----
+El resultado suele ser uno de tres: declaraciones mal hechas, dependencia total de terceros, o directamente no declarar por miedo.  
+**Ninguna es una buena opción.**
 
-## 🚀 Características
-
-### Operaciones soportadas
-| Tipo | Casilla IRPF | Base |
-|------|-------------|------|
-| Compraventa (cripto → €) | 1800–1814 | Ahorro |
-| Permuta (cripto ↔ cripto) | 1800–1814 | Ahorro |
-| Pago con cripto (por bienes/servicios) | 1800–1814 | Ahorro |
-| Staking y Lending | 0033 | Ahorro |
-| Airdrops y Hardforks | 1626 | Ahorro |
-| Minería | Actividad Económica | General |
-| NFTs | 1800–1814 | Ahorro |
-| DeFi / Liquidity Pools | 0033 / 1800 | Ahorro |
-
-### Funcionalidades
-- 🧮 **Calculadora fiscal** con método FIFO y detección automática de casilla
-- 📊 **Dashboard** con resumen de base imponible, impuesto estimado y tramos aplicables
-- 📄 **Informe exportable** en formato texto para llevar al asesor o a la renta web
-- 🌍 **Verificador Modelo 721** para saber si debes declarar tus cripto en el extranjero
-- 📚 **Guía fiscal exhaustiva** basada en normativa AEAT y consultas DGT vinculantes
-- ⚖️ **Calculadora de compensación de pérdidas**
-- ⚠️ Alertas automáticas para evitar errores comunes
+**Angel Tax nace para resolver eso. Sin miedo. Sin humo. Sin enviar tus datos a ningún sitio.**
 
 ---
 
-## 🧑‍⚖️ Base Legal
+## ¿Qué es Angel Tax?
 
-Esta aplicación está construida sobre normativa vigente española:
+Angel Tax es una aplicación web open-source, gratuita y 100% local que te ayuda a:
 
-- **Ley 35/2006 IRPF** — Arts. 33 (Ganancias patrimoniales), 35 (Valoración), 37.1.h (Permuta), 46 (Base ahorro), 49 (Integración y compensación)
-- **Consulta DGT V1766-22** — Tratamiento fiscal del staking (equiparado a depósito retribuido)
-- **Consulta DGT V1948-21** — Airdrops como ganancia patrimonial no derivada de transmisión
-- **Consulta DGT V0648-24** — Tokens recibidos sin contraprestación
-- **Disposición Adicional 13ª Ley 11/2021** — Modelo 721 (criptomonedas en el extranjero)
-- **Manual Práctico IRPF 2024 AEAT** — Instrucciones casilla 1800 y siguientes
-- **Directiva DAC8** — Marco europeo de intercambio de información sobre criptoactivos
+- Entender cómo tributan tus criptomonedas en España
+- Calcular tu resultado fiscal por casilla IRPF
+- Importar operaciones desde los principales exchanges (CSV)
+- Analizar documentos fiscales con IA
+- Generar un informe claro para tu asesor o para Renta Web
 
-### Tramos IRPF Base del Ahorro 2024
-| Tramo | Tipo |
-|-------|------|
+Funciona como si tuvieras un asesor fiscal especializado en cripto, guiándote paso a paso y explicándote el porqué de cada decisión.
+
+**Sin crear cuentas. Sin subir archivos a servidores. Sin depender de plataformas cerradas.**
+
+---
+
+## 🧮 Operaciones soportadas
+
+Angel Tax contempla las principales casuísticas fiscales vigentes en España, incluyendo operaciones DeFi:
+
+| Operación | Casilla IRPF | Notas |
+|---|---|---|
+| Compraventa cripto → € | 1800 | Método FIFO obligatorio |
+| Permuta / DEX Swap | 1800 | Cada swap tributa, aunque sea ETH → BNB |
+| Pago con cripto | 1800 | Equivale a una venta al valor de mercado |
+| Staking | 0033 | Tributa al recibir las recompensas, no al venderlas |
+| Lending DeFi (Aave, Compound…) | 0033 | Solo los intereses; el préstamo en sí no tributa |
+| Liquidity Pool — fees cobrados | 0033 | Rendimiento del capital mobiliario |
+| LP — Retirada de liquidez | 1800 | Ganancia/pérdida patrimonial al retirar del pool |
+| Liquidación (Borrowing) | 1800 | Venta forzosa de colateral — SÍ tributa |
+| Envío entre mis propias wallets | — | **NO tributa** · Guarda el txHash como prueba |
+| Envío / donación a otra persona | 1800 | Tú tributas como venta al valor de mercado |
+| Airdrops / Hardforks | 1626 | G/P no derivada de transmisión |
+| NFTs | 1800 | Compraventa o royalties |
+| Minería | Act. Económica | Base general, Modelo 130 trimestral |
+
+> **Modelo 721:** Obligatorio si a 31/dic tienes >50.000€ en exchanges **extranjeros**. La cripto en DeFi / self-custody y en Binance (que reporta con Modelos 172/173) **NO está sujeta** al 721.
+
+---
+
+## 🔍 Trazabilidad y Chainalysis — Lo que Hacienda ya sabe
+
+**La blockchain es pública y permanente.**
+
+Hacienda invierte activamente en herramientas como **Chainalysis** para rastrear operaciones on-chain. Sin trazabilidad de tu coste de adquisición, Hacienda puede asumir precio de compra = 0 € y hacerte tributar por el 100% del valor de venta.
+
+**Ejemplo:**
+- **CON trazabilidad:** compraste BTC a 1.000 €, lo vendes a 4.000 € → ganancia real **3.000 €**
+- **SIN trazabilidad:** Hacienda asume coste 0 € → ganancia "ficticia" **4.000 €** — pagas impuestos por dinero que nunca ganaste
+
+**Recomendaciones básicas:**
+- Guarda los CSVs de todos tus exchanges de todos los años
+- Documenta los envíos entre wallets con el txHash
+- Para DeFi: exporta el historial desde Etherscan / BSCScan
+- Usa herramientas de trazabilidad (Koinly, CoinTracking) si tienes actividad DeFi relevante
+
+---
+
+## 🏛️ Tramos del ahorro 2026
+
+Las ganancias patrimoniales y rendimientos del capital (staking, lending, LP fees) tributan en la **base del ahorro**:
+
+| Base liquidable | Tipo |
+|---|---|
 | Hasta 6.000 € | 19% |
 | 6.000 € – 50.000 € | 21% |
 | 50.000 € – 200.000 € | 23% |
 | 200.000 € – 300.000 € | 27% |
-| Más de 300.000 € | 30% |
+| Más de 300.000 € | **30%** |
+
+*Fuente: Webinar TaxDown × Binance España, 25 febrero 2026.*
 
 ---
 
-## 📦 Instalación y uso
+## ⚖️ Compensación de pérdidas — Las 3 reglas
 
-### Opción A — Usar directamente (recomendado)
-Copia el archivo `AngelTax.jsx` en cualquier proyecto React o pégalo como artifact en Claude.ai.
+1. **Directa (100%):** pérdidas y ganancias de la misma base (casilla 1800) se anulan entre sí.
+2. **Cruzada (25%):** si siguen quedando pérdidas de transmisión, puedes compensar hasta el **25%** de los rendimientos de capital mobiliario (casilla 0033 — staking, lending).
+3. **Regla de los 4 años:** la pérdida neta restante se puede compensar con ganancias de los 4 ejercicios siguientes.
 
-### Opción B — Standalone React App
+> **Regla anti-elusión:** si vendes con pérdida y recompras el mismo activo en los 2 meses siguientes, no puedes aplicar esa pérdida ese año.
+
+---
+
+## 📥 Importación CSV
+
+Angel Tax importa directamente los extractos de:
+
+- **Binance** — Historial de transacciones (export completo)
+- **Coinbase** — Standard CSV
+- **Bit2Me** — Formato nativo
+
+---
+
+## 🤖 Análisis con IA
+
+Sube cualquier PDF, Excel o extracto de exchange y el analizador de IA (Claude API) extrae y clasifica automáticamente tus operaciones.
+
+> **Privacidad:** los documentos se procesan de forma puntual. Angel Tax **no almacena** ningún dato en servidores externos.
+
+---
+
+## 🔒 Privacidad por diseño
+
+La privacidad no es una opción. Es un principio.
+
+- ✅ Sin backend ni servidores
+- ✅ Sin analytics ni tracking
+- ✅ Sin cookies de seguimiento
+- ✅ Sin creación de perfiles
+- ✅ Todo se ejecuta localmente en tu navegador
+
+Para borrar todos tus datos: borra los datos del sitio desde tu navegador. **No queda nada.**
+
+---
+
+## ⚖️ Base legal y normativa
+
+Angel Tax calcula la fiscalidad conforme a la normativa vigente en España:
+
+**Ley del IRPF (Ley 35/2006)**
+- Art. 33 — Ganancias y pérdidas patrimoniales
+- Art. 35 — Valoración
+- Art. 37.1.h — Permutas
+- Arts. 46 y 49 — Base del ahorro e integración
+
+**Consultas vinculantes de la DGT**
+- V1766-22 — Staking
+- V1948-21 — Airdrops
+- V0648-24 — Tokens recibidos sin contraprestación
+
+**Obligaciones informativas**
+- Ley 11/2021, Disposición adicional 13ª — Modelo 721
+
+**Marco europeo (contexto regulatorio)**
+- Directiva **DAC8** — intercambio automático de información sobre criptoactivos (en vigor 2026)
+- Reglamento **MiCA** (UE 2023/1114) — regulación de proveedores y emisión de criptoactivos
+
+---
+
+## ¿Para quién es Angel Tax?
+
+✅ Holders y traders ocasionales  
+✅ Usuarios de staking y lending  
+✅ Usuarios de DeFi (LP pools, Aave, Uniswap…)  
+✅ Usuarios de airdrops, Launchpool y Megadrop  
+✅ Cualquiera que quiera hacer la Renta bien, por su cuenta o con su gestor
+
+> Para casos muy complejos (minería profesional, DeFi avanzado de alto volumen, herencias en cripto), Angel Tax no sustituye a un asesor, pero prepara el terreno y evita errores graves.
+
+---
+
+## 🛠️ Tecnología
+
+- **HTML + CSS + JavaScript** nativo — sin frameworks, sin dependencias de compilación
+- Un único archivo `index.html` — fácil de auditar, fácil de desplegar y verificar
+- **SheetJS** — importación de Excel/CSV
+- **jsPDF** — generación de informes PDF
+- **Claude API (Anthropic)** — análisis de documentos con IA
+
+---
+
+## 🚀 Uso
 
 ```bash
-# Clona el repositorio
-git clone https://github.com/angel-tax/angel-tax.git
-cd angel-tax
+# Opción 1: Sin servidor — abre directamente en el navegador
+open index.html
 
-# Instala dependencias
-npm install
-
-# Lanza en local
-npm run dev
-
-# Build para producción
-npm run build
+# Opción 2: Servidor local
+python3 -m http.server 8080
+# Visita http://localhost:8080
 ```
 
-### Opción C — GitHub Pages (sin instalación)
-Visita: [https://angel-tax.github.io/angel-tax](https://angel-tax.github.io/angel-tax)
-
-### Dependencias
-```json
-{
-  "react": "^18.0.0",
-  "react-dom": "^18.0.0"
-}
-```
-Solo React. Sin dependencias adicionales. Sin librerías de UI externas.
+O usa la versión live: **[kaizenbnb.github.io/Angel-TAX](https://kaizenbnb.github.io/Angel-TAX)**
 
 ---
 
-## 🏗️ Arquitectura
+## 🤝 Contribuir
 
-```
-angel-tax/
-├── AngelTax.jsx          # Aplicación completa (single-file)
-├── README.md             # Este archivo
-├── LICENSE               # MIT License
-├── package.json          # Config React + Vite
-├── index.html            # Entry point
-└── docs/
-    ├── FISCALIDAD.md     # Documentación fiscal exhaustiva
-    ├── CASOS_USO.md      # Ejemplos prácticos
-    └── CONTRIBUIR.md     # Guía de contribución
-```
+Angel Tax es un proyecto comunitario. Las contribuciones son bienvenidas.
 
-### Decisiones de diseño
-- **Single file**: Todo en un JSX para máxima portabilidad y facilidad de uso
-- **No backend**: Privacidad absoluta, sin infraestructura que mantener
-- **No localStorage**: Los datos viven en memoria (sesión) para mayor privacidad
-- **No dependencias de terceros**: Solo React core, zero supply chain risk
+Lee [CONTRIBUTING.md](CONTRIBUTING.md) antes de abrir un PR. Áreas prioritarias:
+
+- Importadores CSV de nuevos exchanges
+- Más tipos de operación DeFi
+- Tests automáticos
+- Mejoras de accesibilidad y UX
 
 ---
 
-## 🤝 Cómo Contribuir
+## 💛 Apoya Angel Tax
 
-Angel Tax es un proyecto de la comunidad cripto española. ¡Tu contribución es bienvenida!
+Si Angel Tax te ha ahorrado tiempo o dinero, puedes contribuir directamente:
 
-### Áreas donde más ayuda hace falta
-
-1. **Actualización normativa** — La fiscalidad cripto cambia rápido. Si detectas cambios en la AEAT, abre un issue.
-2. **Casos edge** — DeFi avanzado, wrapped tokens, bridges cross-chain, liquid staking...
-3. **Importación de exchanges** — Parsers para CSV de Binance, Coinbase, Kraken, Bybit...
-4. **Traducción** — Catalán, Gallego, Euskera
-5. **Tests** — Casos de prueba para los cálculos fiscales
-6. **Accesibilidad** — WCAG 2.1 compliance
-
-### Proceso de contribución
-
-```bash
-# Fork del repo
-git clone https://github.com/TU_USUARIO/angel-tax.git
-
-# Crea una rama para tu feature
-git checkout -b feature/importacion-binance-csv
-
-# Haz tus cambios y commits
-git commit -m "feat: importación CSV desde Binance"
-
-# Push y abre Pull Request
-git push origin feature/importacion-binance-csv
-```
+| Red | Dirección |
+|---|---|
+| ₿ Bitcoin (BTC nativa) | `bc1q6urerf7ncm4khhplxatl9cn8na70shu4lanks6` |
+| Ξ Ethereum (ERC-20) | `0x026066a7d38420297881575738Fea1BeB33Ed29f` |
+| ◎ Solana (SOL nativa) | `34ERsZd46CozZxiUtoZLTEUAs8Xt7zL9UF4qgyb5Vuse` |
+| ⬡ BNB Smart Chain (BEP-20) | `0x11EFFaBCBDd5902eCf66fe93FF5A36B27C3A67Cc` |
 
 ---
 
-## ⚠️ Disclaimer Legal
+## ⚠️ Aviso legal
 
-> Angel Tax es una herramienta orientativa de apoyo para la autoliquidación fiscal. Los cálculos son estimaciones basadas en la normativa vigente interpretada a mejor criterio.
-> 
-> **Esta herramienta NO sustituye el asesoramiento de un profesional fiscal certificado.** Para casos complejos (minería profesional, traders con alto volumen, operaciones en DeFi avanzado, NFT con royalties, herencias con cripto, etc.) consulta siempre con un asesor fiscal o gestor colegiado.
-> 
-> Los autores de Angel Tax no se responsabilizan de errores u omisiones en las declaraciones fiscales presentadas basándose en esta herramienta.
+Angel Tax es una herramienta de apoyo orientativo para la autoliquidación fiscal.
 
----
+Los resultados dependen de la información introducida por el usuario, la correcta clasificación de las operaciones y la normativa vigente en cada ejercicio.
 
-## 📄 Licencia
-
-MIT License — Úsala, modifícala, distribúyela libremente. Solo mantén la atribución.
-
-```
-Copyright (c) 2025 Angel Tax Contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software...
-```
+Recomendamos revisar los resultados, contrastarlos si tienes dudas y aplicar criterio antes de presentar la declaración. **La responsabilidad final de la declaración corresponde siempre al contribuyente.**
 
 ---
 
-## 🙏 Agradecimientos
-
-- **AEAT** — Por los manuales prácticos del IRPF
-- **AFCripto** — Por su excelente guía de referencia
-- **TaxDown** — Por democratizar la declaración de la renta
-- **Comunidad cripto española** — Por hacer las preguntas correctas
-
----
-
-*Hecho con ❤️ para la comunidad cripto española. Duerme tranquilo con tu fiscalidad.*
+*Construido por builders del ecosistema cripto · Hecho con ❤️ en España*
