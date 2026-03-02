@@ -1,4 +1,4 @@
-# 😇 Angel Tax
+# Angel Tax
 
 **Tu fiscalidad cripto, clara y bajo control.**
 
