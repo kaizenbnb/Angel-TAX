@@ -1,0 +1,27 @@
+{
+  "name": "angel-tax",
+  "version": "1.0.0",
+  "description": "Fiscalidad de criptomonedas en España — Open Source, Privacy First",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.2"
+  },
+  "keywords": ["criptomonedas", "fiscalidad", "españa", "irpf", "hacienda", "bitcoin", "crypto", "tax", "open-source"],
+  "author": "Angel Tax Contributors",
+  "license": "MIT",
+  "homepage": "https://angel-tax.github.io/angel-tax",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/angel-tax/angel-tax.git"
+  }
+}
