@@ -471,7 +471,7 @@ function renderHome(sm) {
             Angel Tax nace para <strong style="color:var(--gold2)">democratizar el acceso a la fiscalidad cripto</strong>. Sin suscripciones, sin datos en servidores, sin letra pequeña. Todo el código es open source y auditado por la comunidad.
           </p>
           <p style="font-size:14px;color:var(--dim);line-height:1.8">
-            Nacido en el ecosistema de <strong style="color:var(--text)">Binance España</strong>. Avalado por la normativa AEAT vigente y consultas DGT vinculantes.
+            Código abierto, mantenido por la comunidad. Avalado por la normativa AEAT vigente y consultas DGT vinculantes.
           </p>
         </div>
       </div>
@@ -1113,6 +1113,13 @@ function renderImport() {
           {id:"binance",  label:"Binance",  icon:"🟡"},
           {id:"coinbase", label:"Coinbase", icon:"🔵"},
           {id:"bit2me",   label:"Bit2Me",   icon:"🟢"},
+          {id:"kraken",   label:"Kraken",   icon:"🟣"},
+          {id:"revolut",  label:"Revolut",  icon:"🔷"},
+          {id:"etoro",    label:"eToro",    icon:"🟩"},
+          {id:"bitvavo",  label:"Bitvavo",  icon:"🔶"},
+          {id:"okx",      label:"OKX",      icon:"⬛"},
+          {id:"bitpanda", label:"Bitpanda", icon:"🐼"},
+          {id:"bitget",   label:"Bitget",   icon:"🔵"},
         ].map(e=>`
           <div onclick="selectExchange('${e.id}')"
                style="background:${ex===e.id?"var(--sur3)":"var(--sur2)"};border:1.5px solid ${ex===e.id?"var(--gold)":"var(--bor)"};border-radius:10px;padding:14px;text-align:center;cursor:pointer;transition:all .15s">
@@ -1204,15 +1211,27 @@ function renderImportPreview() {
 
 function getCsvTypes(ex) {
   const types = {
-    binance: [
-      {id:"binance_gains",  label:"Ganancias de capital realizadas", desc:"Compraventas y permutas",         casilla:"1800"},
-      {id:"binance_income", label:"Ganancias de ingresos",           desc:"Staking, rewards, cashback",      casilla:"0033"},
+    binance:  [
+      {id:"binance_gains",  label:"Ganancias de capital realizadas", desc:"Compraventas y permutas",          casilla:"1800"},
+      {id:"binance_income", label:"Ganancias de ingresos",           desc:"Staking, rewards, cashback",       casilla:"0033"},
     ],
-    coinbase: [
-      {id:"coinbase_tx",    label:"Transaction Report",              desc:"Todas las transacciones",         casilla:"1800/0033"},
+    coinbase: [{id:"coinbase_tx",    label:"Transaction Report",       desc:"Todas las transacciones",          casilla:"1800/0033"}],
+    bit2me:   [{id:"bit2me_tx",      label:"Historial de transacciones",desc:"Exportación de Bit2Me",           casilla:"1800/0033"}],
+    kraken:   [
+      {id:"kraken_ledger",  label:"Ledger (Libro mayor)",             desc:"Exportación completa — recomendada",casilla:"1800/0033"},
+      {id:"kraken_trades",  label:"Trades",                           desc:"Solo operaciones spot",             casilla:"1800"},
     ],
-    bit2me: [
-      {id:"bit2me_tx",      label:"Historial de transacciones",      desc:"Exportación de Bit2Me",           casilla:"1800"},
+    revolut:  [{id:"revolut_crypto", label:"Extracto de criptomonedas",desc:"Crypto Statement CSV/Excel",       casilla:"1800/0033"}],
+    etoro:    [{id:"etoro_account",  label:"Account Statement",        desc:"Exportación completa de eToro",    casilla:"1800/0033"}],
+    bitvavo:  [{id:"bitvavo_tx",     label:"Transaction history",      desc:"Exportación de Bitvavo",           casilla:"1800/0033"}],
+    okx:      [
+      {id:"okx_trades",     label:"Trading history",                  desc:"Spot trading history",              casilla:"1800"},
+      {id:"okx_funding",    label:"Funding/Earn history",             desc:"Staking, savings, rewards",         casilla:"0033"},
+    ],
+    bitpanda: [{id:"bitpanda_tx",    label:"Transaction history",      desc:"Exportación de Bitpanda",          casilla:"1800/0033"}],
+    bitget:   [
+      {id:"bitget_spot",    label:"Spot order history",               desc:"Operaciones spot",                  casilla:"1800"},
+      {id:"bitget_earn",    label:"Earn/Staking history",             desc:"Staking y earn",                    casilla:"0033"},
     ],
   };
   return types[ex] || [];
@@ -1220,9 +1239,16 @@ function getCsvTypes(ex) {
 
 function getInstructions(ex) {
   const inst = {
-    binance:  "📍 <strong>Binance:</strong> binance.com/es/tax → Informes fiscales → Selecciona el año → Generar → Descargar CSV",
-    coinbase: "📍 <strong>Coinbase:</strong> coinbase.com → Impuestos → Documentos → Descargar informe de transacciones (.csv)",
+    binance:  "📍 <strong>Binance:</strong> binance.com/es/tax → Informes fiscales → Selecciona año → Generar → Descargar CSV",
+    coinbase: "📍 <strong>Coinbase:</strong> coinbase.com → Impuestos → Documentos → Transaction Report (.csv)",
     bit2me:   "📍 <strong>Bit2Me:</strong> bit2me.com → Mi cuenta → Actividad → Exportar → CSV",
+    kraken:   "📍 <strong>Kraken:</strong> kraken.com → History → Export → Ledger (recomendado) o Trades → CSV. Selecciona todo el año.",
+    revolut:  "📍 <strong>Revolut:</strong> App Revolut → Cripto → Ver todo → Extracto → Selecciona periodo → Enviar CSV al email",
+    etoro:    "📍 <strong>eToro:</strong> eToro.com → Portfolio → History → Account Statement → Selecciona año → Descargar Excel/CSV",
+    bitvavo:  "📍 <strong>Bitvavo:</strong> bitvavo.com → Cuenta → Historial → Exportar → CSV. Selecciona todo el año.",
+    okx:      "📍 <strong>OKX:</strong> okx.com → Assets → Bills → Export → Trading History CSV. Para staking: Finance → Earn → History → Export",
+    bitpanda: "📍 <strong>Bitpanda:</strong> bitpanda.com → Mi perfil → Historial de transacciones → Exportar CSV",
+    bitget:   "📍 <strong>Bitget:</strong> bitget.com → Órdenes → Historial de órdenes spot → Exportar CSV. Para earn: Earn → Historial → Exportar",
   };
   return inst[ex] || "";
 }
@@ -1284,6 +1310,16 @@ function parseCSV(text, type) {
       else if (type === "binance_income") op = parseBinanceIncome(obj, i);
       else if (type === "coinbase_tx")    op = parseCoinbaseTx(obj, i);
       else if (type === "bit2me_tx")      op = parseBit2MeTx(obj, i);
+      else if (type === "kraken_ledger")  op = parseKrakenLedger(obj, i);
+      else if (type === "kraken_trades")  op = parseKrakenTrades(obj, i);
+      else if (type === "revolut_crypto") op = parseRevolutCrypto(obj, i);
+      else if (type === "etoro_account")  op = parseEtoroAccount(obj, i);
+      else if (type === "bitvavo_tx")     op = parseBitvavoTx(obj, i);
+      else if (type === "okx_trades")     op = parseOkxTrades(obj, i);
+      else if (type === "okx_funding")    op = parseOkxFunding(obj, i);
+      else if (type === "bitpanda_tx")    op = parseBitpandaTx(obj, i);
+      else if (type === "bitget_spot")    op = parseBitgetSpot(obj, i);
+      else if (type === "bitget_earn")    op = parseBitgetEarn(obj, i);
 
       if (op) ops.push(op);
       else errors.push(`Fila ${i+1}: datos insuficientes`);
@@ -1481,6 +1517,350 @@ function parseBit2MeTx(obj, row) {
   }
 
   throw new Error(`Tipo '${type}' no imponible`);
+}
+
+// ── Kraken Ledger ──
+// Columns: txid, refid, time, type, subtype, aclass, asset, amount, fee, balance
+function parseKrakenLedger(obj, row) {
+  const type  = (obj["type"]||"").toLowerCase();
+  const asset = (obj["asset"]||"").replace(/^[XZ](?=[A-Z]{3})/, "").replace("XBT","BTC").toUpperCase();
+  if (!asset) throw new Error("Sin activo");
+
+  const date   = formatDate(obj["time"]||obj["date"]||"");
+  const amount = Math.abs(toNum(obj["amount"]||"0"));
+  const fee    = Math.abs(toNum(obj["fee"]||"0"));
+
+  // Kraken ledger: trade = compraventa, staking/reward = 0033, transfer/deposit/withdrawal = skip
+  if (type==="trade") {
+    // Kraken trades come in pairs (asset out + EUR in) — we need to pair them
+    // For now: if asset ends in EUR/USDT/USDC it's a sale proceeds, else it's the asset
+    const isEur = ["EUR","USDT","USDC","BUSD","DAI"].includes(asset);
+    if (isEur) {
+      // This row is the EUR proceeds side
+      const proceeds = amount - fee;
+      return {
+        id: genId(), type:"compraventa", typeName:"Compraventa",
+        asset: "CRIPTO", date,
+        acq: 0, trans: proceeds, fees: fee,
+        gain: proceeds, casilla: "1800",
+        notes: `Importado Kraken · venta → ${amount} EUR · ⚠️ Ajusta la base de coste con FIFO`
+      };
+    }
+    throw new Error("Fila de activo (par de trade) — se procesa con la fila EUR");
+  }
+
+  if (type==="staking"||type==="dividend"||type==="reward") {
+    // Kraken doesn't give EUR value directly — user needs to check
+    if (amount === 0) throw new Error("Cantidad a 0");
+    return {
+      id: genId(), type:"staking", typeName:"Staking",
+      asset, date,
+      acq: 0, trans: 0, fees: 0,
+      gain: 0, casilla: "0033",
+      notes: `Importado Kraken · ${type} · ${amount} ${asset} · ⚠️ Introduce valor EUR al recibir`
+    };
+  }
+
+  throw new Error(`Tipo '${type}' no imponible (deposit/withdrawal/transfer)`);
+}
+
+// ── Kraken Trades ──
+// Columns: txid, ordertxid, pair, time, type, ordertype, price, cost, fee, vol, margin, misc, ledgers
+function parseKrakenTrades(obj, row) {
+  const pair  = (obj["pair"]||"").toUpperCase();
+  const type  = (obj["type"]||"").toLowerCase(); // buy/sell
+  const date  = formatDate(obj["time"]||"");
+  const cost  = toNum(obj["cost"]||"0");  // total en EUR
+  const fee   = toNum(obj["fee"]||"0");
+  const vol   = toNum(obj["vol"]||obj["volume"]||"0");
+  const price = toNum(obj["price"]||"0");
+
+  if (!pair) throw new Error("Sin par");
+
+  // Extract base asset from pair (XBTEUR → BTC, ETHEUR → ETH, etc.)
+  const base = pair.replace(/EUR$|USDT$|USD$|USDC$/, "").replace(/^X(?=[A-Z]{3})/,"").replace("XBT","BTC");
+
+  if (type==="sell") {
+    const proceeds = cost - fee;
+    return {
+      id: genId(), type:"compraventa", typeName:"Compraventa",
+      asset: base, date,
+      acq: 0, trans: proceeds, fees: fee,
+      gain: proceeds, casilla: "1800",
+      notes: `Importado Kraken · ${vol} ${base} @ ${price} EUR · ⚠️ Base de coste FIFO pendiente`
+    };
+  }
+
+  throw new Error(`Tipo '${type}' (buy) no es evento imponible`);
+}
+
+// ── Revolut Crypto ──
+// Columns: Type, Product, Started Date, Completed Date, Description, Amount, Currency, Fiat amount, Fiat amount (inc. fees), Fee, Base currency, State, Balance
+function parseRevolutCrypto(obj, row) {
+  const type     = (obj["type"]||"").toLowerCase();
+  const state    = (obj["state"]||"").toLowerCase();
+  if (state && state !== "completed") throw new Error(`Estado '${state}' — solo se importan completadas`);
+
+  const currency = (obj["currency"]||obj["asset"]||"").toUpperCase();
+  const date     = formatDate(obj["completed_date"]||obj["started_date"]||obj["date"]||"");
+  const amount   = Math.abs(toNum(obj["amount"]||"0"));
+  const fiatNet  = Math.abs(toNum(obj["fiat_amount"]||"0")); // sin fees
+  const fiatFees = Math.abs(toNum(obj["fiat_amount_(inc._fees)"]||obj["fiat_amount_inc_fees"]||"0"));
+  const fee      = Math.abs(toNum(obj["fee"]||"0"));
+
+  const proceeds = fiatNet > 0 ? fiatNet : fiatFees;
+
+  if (type==="exchange"||type==="sell"||type==="venta") {
+    if (proceeds === 0) throw new Error("Valor fiat a 0");
+    return {
+      id: genId(), type:"compraventa", typeName:"Compraventa",
+      asset: currency, date,
+      acq: 0, trans: proceeds, fees: fee,
+      gain: proceeds, casilla: "1800",
+      notes: `Importado Revolut · ${amount} ${currency} · ⚠️ Base de coste FIFO pendiente`
+    };
+  }
+
+  if (type==="buy"||type==="compra") {
+    throw new Error("Compra — no es evento imponible");
+  }
+
+  if (type==="cashback"||type==="reward"||type==="staking") {
+    if (proceeds === 0) throw new Error("Valor a 0");
+    return {
+      id: genId(), type:"staking", typeName:"Staking",
+      asset: currency, date,
+      acq: 0, trans: proceeds, fees: 0,
+      gain: proceeds, casilla: "0033",
+      notes: `Importado Revolut · ${type} · ${amount} ${currency}`
+    };
+  }
+
+  throw new Error(`Tipo '${type}' no imponible`);
+}
+
+// ── eToro Account Statement ──
+// Columns: Date, Type, Details, Amount, Units, Realized Equity Change, Realized Equity, Balance, Position ID, Asset name, NWA
+function parseEtoroAccount(obj, row) {
+  const type   = (obj["type"]||"").toLowerCase();
+  const asset  = (obj["asset_name"]||obj["details"]||"").toUpperCase().split(" ")[0];
+  const date   = formatDate(obj["date"]||"");
+  const amount = toNum(obj["amount"]||"0"); // en USD/EUR
+  const realizedChange = toNum(obj["realized_equity_change"]||"0");
+
+  if (type.includes("profit")||type.includes("loss")||type.includes("close")||type.includes("sell")) {
+    const gain = realizedChange !== 0 ? realizedChange : amount;
+    return {
+      id: genId(), type:"compraventa", typeName:"Compraventa",
+      asset: asset||"CRIPTO", date,
+      acq: 0, trans: Math.max(gain, 0), fees: 0,
+      gain, casilla: "1800",
+      notes: `Importado eToro · ${type} · ⚠️ Verifica conversión a EUR si cuenta en USD`
+    };
+  }
+
+  if (type.includes("dividend")||type.includes("interest")||type.includes("staking")) {
+    if (amount === 0) throw new Error("Valor a 0");
+    return {
+      id: genId(), type:"staking", typeName:"Staking",
+      asset: asset||"CRIPTO", date,
+      acq: 0, trans: Math.abs(amount), fees: 0,
+      gain: Math.abs(amount), casilla: "0033",
+      notes: `Importado eToro · ${type}`
+    };
+  }
+
+  throw new Error(`Tipo '${type}' no imponible`);
+}
+
+// ── Bitvavo ──
+// Columns: Time, Type, Currency, Amount, Price (EUR), Fee currency, Fee amount, Status
+function parseBitvavoTx(obj, row) {
+  const type    = (obj["type"]||"").toLowerCase();
+  const asset   = (obj["currency"]||obj["asset"]||"").toUpperCase();
+  const date    = formatDate(obj["time"]||obj["date"]||"");
+  const amount  = Math.abs(toNum(obj["amount"]||"0"));
+  const price   = toNum(obj["price_(eur)"]||obj["price"]||obj["price_eur"]||"0");
+  const feeCur  = (obj["fee_currency"]||"").toUpperCase();
+  const feeAmt  = toNum(obj["fee_amount"]||"0");
+  const feeEur  = feeCur==="EUR" ? feeAmt : feeAmt * price;
+
+  if (!asset) throw new Error("Sin activo");
+
+  if (type==="sell"||type==="vender") {
+    const proceeds = amount * price;
+    if (proceeds === 0) throw new Error("Valor a 0");
+    return {
+      id: genId(), type:"compraventa", typeName:"Compraventa",
+      asset, date,
+      acq: 0, trans: proceeds - feeEur, fees: feeEur,
+      gain: proceeds - feeEur, casilla: "1800",
+      notes: `Importado Bitvavo · ${amount} ${asset} @ ${price} EUR · ⚠️ Base de coste FIFO pendiente`
+    };
+  }
+
+  if (type==="buy"||type==="comprar") {
+    throw new Error("Compra — no es evento imponible");
+  }
+
+  if (type==="staking"||type==="reward"||type==="interest"||type==="earn") {
+    const val = amount * price;
+    if (val === 0) throw new Error("Valor a 0");
+    return {
+      id: genId(), type:"staking", typeName:"Staking",
+      asset, date,
+      acq: 0, trans: val, fees: 0,
+      gain: val, casilla: "0033",
+      notes: `Importado Bitvavo · ${type} · ${amount} ${asset}`
+    };
+  }
+
+  throw new Error(`Tipo '${type}' no imponible`);
+}
+
+// ── OKX Trades ──
+// Columns: Order Time, Instrument Name, Trade Side, Filled Qty, Avg Price, Filled Amount (USDT/EUR), Fee, Fee Currency, PnL
+function parseOkxTrades(obj, row) {
+  const side    = (obj["trade_side"]||obj["side"]||"").toLowerCase();
+  const inst    = (obj["instrument_name"]||obj["instid"]||obj["pair"]||"").toUpperCase();
+  const date    = formatDate(obj["order_time"]||obj["time"]||obj["date"]||"");
+  const qty     = toNum(obj["filled_qty"]||obj["qty"]||"0");
+  const price   = toNum(obj["avg_price"]||obj["price"]||"0");
+  const filled  = toNum(obj["filled_amount"]||obj["amount"]||"0");
+  const fee     = Math.abs(toNum(obj["fee"]||"0"));
+  const pnl     = toNum(obj["pnl"]||"0");
+
+  // Extract base asset (BTC-USDT → BTC)
+  const base    = inst.split(/[-_/]/)[0] || inst;
+
+  if (side==="sell"||side==="venta") {
+    const proceeds = filled > 0 ? filled : qty * price;
+    if (proceeds === 0) throw new Error("Valor a 0");
+    return {
+      id: genId(), type:"compraventa", typeName:"Compraventa",
+      asset: base, date,
+      acq: 0, trans: proceeds, fees: fee,
+      gain: pnl !== 0 ? pnl : proceeds, casilla: "1800",
+      notes: `Importado OKX · ${qty} ${base} · ⚠️ Base de coste FIFO pendiente`
+    };
+  }
+
+  throw new Error(`Lado '${side}' (buy) no es evento imponible`);
+}
+
+// ── OKX Funding/Earn ──
+// Columns: Time, Currency, Amount, Type (Staking/Savings/etc.)
+function parseOkxFunding(obj, row) {
+  const asset  = (obj["currency"]||obj["ccy"]||"").toUpperCase();
+  const date   = formatDate(obj["time"]||obj["date"]||"");
+  const amount = Math.abs(toNum(obj["amount"]||"0"));
+  const type   = (obj["type"]||"").toLowerCase();
+
+  if (!asset) throw new Error("Sin activo");
+  if (amount === 0) throw new Error("Cantidad a 0");
+
+  return {
+    id: genId(), type:"staking", typeName:"Staking",
+    asset, date,
+    acq: 0, trans: 0, fees: 0,
+    gain: 0, casilla: "0033",
+    notes: `Importado OKX Earn · ${type} · ${amount} ${asset} · ⚠️ Introduce valor EUR al recibir`
+  };
+}
+
+// ── Bitpanda ──
+// Columns: Transaction ID, Timestamp, Transaction Type, In/Out, Amount Fiat, Fiat, Amount Asset, Asset, Asset market price, Asset market price currency, Asset class, Product ID, Fee amount, Fee asset, Tax fiat amount, Tax fiat currency, Notes
+function parseBitpandaTx(obj, row) {
+  const txType  = (obj["transaction_type"]||obj["type"]||"").toLowerCase();
+  const asset   = (obj["asset"]||obj["currency"]||"").toUpperCase();
+  const date    = formatDate(obj["timestamp"]||obj["date"]||"");
+  const amtFiat = toNum(obj["amount_fiat"]||obj["fiat_amount"]||"0");
+  const amtAsset= Math.abs(toNum(obj["amount_asset"]||obj["amount"]||"0"));
+  const price   = toNum(obj["asset_market_price"]||obj["price"]||"0");
+  const fee     = toNum(obj["fee_amount"]||"0");
+  const inOut   = (obj["in/out"]||obj["direction"]||"").toLowerCase();
+
+  if (!asset) throw new Error("Sin activo");
+
+  if (txType==="sell"||txType==="trade_sell"||(txType==="trade"&&inOut==="outgoing")) {
+    const proceeds = amtFiat > 0 ? amtFiat : amtAsset * price;
+    if (proceeds === 0) throw new Error("Valor a 0");
+    return {
+      id: genId(), type:"compraventa", typeName:"Compraventa",
+      asset, date,
+      acq: 0, trans: proceeds, fees: fee,
+      gain: proceeds, casilla: "1800",
+      notes: `Importado Bitpanda · ${amtAsset} ${asset} · ⚠️ Base de coste FIFO pendiente`
+    };
+  }
+
+  if (txType==="buy"||txType==="trade_buy"||(txType==="trade"&&inOut==="incoming")) {
+    throw new Error("Compra — no es evento imponible");
+  }
+
+  if (txType.includes("reward")||txType.includes("cashback")||txType.includes("staking")||txType.includes("interest")) {
+    const val = amtFiat > 0 ? amtFiat : amtAsset * price;
+    if (val === 0) throw new Error("Valor a 0");
+    return {
+      id: genId(), type:"staking", typeName:"Staking",
+      asset, date,
+      acq: 0, trans: val, fees: 0,
+      gain: val, casilla: "0033",
+      notes: `Importado Bitpanda · ${txType} · ${amtAsset} ${asset}`
+    };
+  }
+
+  throw new Error(`Tipo '${txType}' no imponible`);
+}
+
+// ── Bitget Spot ──
+// Columns: Date, Pair, Side, Average Price, Filled, Total, Fee, Fee Currency, Status
+function parseBitgetSpot(obj, row) {
+  const side    = (obj["side"]||obj["trade_side"]||"").toLowerCase();
+  const pair    = (obj["pair"]||obj["symbol"]||"").toUpperCase();
+  const date    = formatDate(obj["date"]||obj["time"]||obj["created_time"]||"");
+  const avg     = toNum(obj["average_price"]||obj["price"]||"0");
+  const filled  = toNum(obj["filled"]||obj["qty"]||"0");
+  const total   = toNum(obj["total"]||"0");
+  const fee     = Math.abs(toNum(obj["fee"]||"0"));
+  const feeCur  = (obj["fee_currency"]||"").toUpperCase();
+
+  const base    = pair.split(/[-_/USDT|EUR]/)[0] || pair;
+  const feeEur  = (feeCur==="EUR"||feeCur==="USDT") ? fee : 0;
+
+  if (side==="sell") {
+    const proceeds = total > 0 ? total : filled * avg;
+    if (proceeds === 0) throw new Error("Valor a 0");
+    return {
+      id: genId(), type:"compraventa", typeName:"Compraventa",
+      asset: base, date,
+      acq: 0, trans: proceeds, fees: feeEur,
+      gain: proceeds, casilla: "1800",
+      notes: `Importado Bitget · ${filled} ${base} @ ${avg} · ⚠️ Base de coste FIFO pendiente`
+    };
+  }
+
+  throw new Error(`Lado '${side}' (buy) no es evento imponible`);
+}
+
+// ── Bitget Earn ──
+// Columns: Time, Coin, Amount, Type (Fixed/Flexible savings, Staking etc.), Status
+function parseBitgetEarn(obj, row) {
+  const asset  = (obj["coin"]||obj["currency"]||obj["asset"]||"").toUpperCase();
+  const date   = formatDate(obj["time"]||obj["date"]||"");
+  const amount = Math.abs(toNum(obj["amount"]||"0"));
+  const type   = (obj["type"]||"").toLowerCase();
+
+  if (!asset) throw new Error("Sin activo");
+  if (amount === 0) throw new Error("Cantidad a 0");
+
+  return {
+    id: genId(), type:"staking", typeName:"Staking",
+    asset, date,
+    acq: 0, trans: 0, fees: 0,
+    gain: 0, casilla: "0033",
+    notes: `Importado Bitget Earn · ${type} · ${amount} ${asset} · ⚠️ Introduce valor EUR al recibir`
+  };
 }
 
 function confirmImport() {
