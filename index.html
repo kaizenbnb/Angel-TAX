@@ -112,7 +112,7 @@
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
-let state = { ops: [], lots: [], year: String(new Date().getFullYear() - 1) };
+let state = { ops: [], lots: [], balances: [], year: String(new Date().getFullYear() - 1) };
 let currentTab = "home";
 let currentOpType = null;
 let formData = {};
@@ -637,12 +637,14 @@ function renderHome(sm) {
 
     ${sm.airdrops>0?`<div class="alert alert-orange">ℹ️ <strong>Airdrops — Base general:</strong> Los ${fmt(sm.airdrops)} de airdrops (casilla 1626) tributan en la <strong>base general del IRPF</strong> (no en la base del ahorro). El tipo depende de tu tramo de renta total, que puede ser superior al 30%.</div>`:""}
 
-    ${sm.base>40000?`<div class="alert ${sm.base>50000?"alert-red":"alert-orange"}">
-      ${sm.base>50000?"🚨":"⚠️"} <strong>Modelo 721:</strong>
-      ${sm.base>50000
-        ?"Tus ganancias superan los 50.000€. Si además mantienes cripto en exchanges extranjeros a 31/12/"+state.year+", comprueba si superas ese umbral patrimonial para el Modelo 721 (plazo: 31 marzo)."
-        :"Tus ganancias se acercan a los 50.000€. Recuerda que el Modelo 721 se basa en el patrimonio total en exchanges extranjeros a 31/dic, no en las ganancias."}
-    </div>`:""}
+    ${(()=>{
+      const t = getM721Total();
+      const hasB = state.balances.length > 0;
+      if (!hasB) return `<div class="alert alert-blue">ℹ️ <strong>Modelo 721:</strong> ¿Tienes cripto en exchanges extranjeros? Introduce tus saldos a 31/dic en la sección M721 de abajo para saber si debes presentarlo.</div>`;
+      if (t >= 50000) return `<div class="alert alert-red">🚨 <strong>Modelo 721 OBLIGATORIO:</strong> ${fmt(t)} € en exchanges extranjeros. Plazo: 1 enero – 31 marzo ${parseInt(state.year)+1}.</div>`;
+      if (t >= 40000) return `<div class="alert alert-orange">⚠️ <strong>Modelo 721:</strong> ${fmt(t)} € en exchanges extranjeros — cerca del umbral de 50.000€. Verifica el valor exacto a 31/12.</div>`;
+      return `<div class="alert alert-green">✅ <strong>Modelo 721:</strong> ${fmt(t)} € en exchanges extranjeros — por debajo del umbral. No obligatorio.</div>`;
+    })()}
 
     <div class="card">
       <div class="ff-serif" style="font-size:17px;margin-bottom:16px">Tramos IRPF Base del Ahorro ${state.year}</div>
@@ -947,15 +949,17 @@ function renderReport(sm) {
       </div>` : ""}
     </div>` : "";
 
+  const m721Block = renderM721Section();
+
   if (state.ops.length === 0) {
-    return lotsBlock + `<div class="empty" style="margin-top:0">
+    return lotsBlock + m721Block + `<div class="empty" style="margin-top:0">
       <div class="empty-icon">📄</div>
       <div class="ff-serif" style="font-size:18px;color:var(--dim)">Sin operaciones de venta todavía</div>
       <div style="font-size:13px;color:var(--mut);margin-top:8px;margin-bottom:24px">Tus lotes están registrados. Añade ventas para generar el informe fiscal.</div>
     </div>`;
   }
 
-  return lotsBlock + `
+  return lotsBlock + m721Block + `
     <div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
       <div>
         <div class="card-title">📄 Informe Fiscal ${state.year}</div>
@@ -2738,6 +2742,155 @@ function consumeLots(lotsUsed) {
 function deleteLot(id) {
   state.lots = state.lots.filter(l => l.id !== id);
   render();
+}
+
+// ═══════════════════════════════════════════
+// MODELO 721 ENGINE
+// ═══════════════════════════════════════════
+
+// Exchanges con sede en España → NO requieren M721
+const SPAIN_EXCHANGES = ["bit2me","criptan","2gether","coinmotion","bytr"];
+
+// Catálogo de exchanges conocidos para el formulario M721
+const M721_EXCHANGES = [
+  {id:"binance",   label:"Binance",   foreign:true},
+  {id:"coinbase",  label:"Coinbase",  foreign:true},
+  {id:"kraken",    label:"Kraken",    foreign:true},
+  {id:"revolut",   label:"Revolut",   foreign:true},
+  {id:"etoro",     label:"eToro",     foreign:true},
+  {id:"bitvavo",   label:"Bitvavo",   foreign:true},
+  {id:"okx",       label:"OKX",       foreign:true},
+  {id:"bitpanda",  label:"Bitpanda",  foreign:true},
+  {id:"bitget",    label:"Bitget",    foreign:true},
+  {id:"bit2me",    label:"Bit2Me",    foreign:false},
+  {id:"criptan",   label:"Criptan",   foreign:false},
+  {id:"otro_ext",  label:"Otro (extranjero)", foreign:true},
+  {id:"otro_es",   label:"Otro (español)",    foreign:false},
+];
+
+function getM721Total() {
+  return state.balances
+    .filter(b => b.foreign && b.eur > 0)
+    .reduce((s, b) => s + b.eur, 0);
+}
+
+function needsM721() {
+  return getM721Total() >= 50000;
+}
+
+function addBalance(exchangeId, exchangeLabel, eur, foreign) {
+  // Replace if same exchange already exists
+  const idx = state.balances.findIndex(b => b.exchangeId === exchangeId);
+  const entry = { exchangeId, label: exchangeLabel, eur: parseFloat(eur)||0, foreign };
+  if (idx >= 0) state.balances[idx] = entry;
+  else state.balances.push(entry);
+}
+
+function deleteBalance(exchangeId) {
+  state.balances = state.balances.filter(b => b.exchangeId !== exchangeId);
+  render();
+}
+
+// M721 state
+let m721State = { adding: false, selectedEx: null, inputEur: "" };
+
+function renderM721Section() {
+  const total    = getM721Total();
+  const totalAll = state.balances.reduce((s,b)=>s+b.eur,0);
+  const needs    = total >= 50000;
+  const close    = total >= 40000 && total < 50000;
+  const hasData  = state.balances.length > 0;
+
+  return `
+  <div class="card" style="border-color:${needs?"var(--red)":close?"var(--orange)":"var(--bor2)"}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+      <div>
+        <div class="card-title">🌍 Modelo 721 — Saldo a 31/dic/${state.year}</div>
+        <div class="card-sub">Obligatorio si tienes >50.000€ en exchanges extranjeros</div>
+      </div>
+      <button class="btn-sec" onclick="m721State.adding=!m721State.adding;render()">
+        ${m721State.adding?"✕ Cancelar":"+ Añadir exchange"}
+      </button>
+    </div>
+
+    ${needs?`<div class="alert alert-red">🚨 <strong>Modelo 721 OBLIGATORIO:</strong> Tus saldos en exchanges extranjeros suman ${fmt(total)} €, superando el umbral de 50.000€. Debes presentarlo entre el 1 de enero y el 31 de marzo de ${parseInt(state.year)+1}. La sanción por no presentarlo puede superar los 10.000€.</div>`:""}
+    ${close&&!needs?`<div class="alert alert-orange">⚠️ <strong>Atención:</strong> Tus saldos se acercan al umbral de 50.000€ (actualmente ${fmt(total)} €). Verifica el valor exacto a 31/12/${state.year}.</div>`:""}
+    ${!needs&&!close&&hasData?`<div class="alert alert-green">✅ Saldos en exchanges extranjeros: ${fmt(total)} € — por debajo del umbral. Modelo 721 no obligatorio este año.</div>`:""}
+    ${!hasData?`<div class="alert alert-blue">ℹ️ Introduce tus saldos en cada exchange a 31 de diciembre de ${state.year} para saber si debes presentar el Modelo 721.</div>`:""}
+
+    ${m721State.adding?`
+    <div style="background:var(--sur2);border:1px solid var(--bor2);border-radius:12px;padding:16px;margin-bottom:16px">
+      <div style="font-size:12px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px">Nuevo saldo</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>
+          <label class="form-label">Exchange</label>
+          <select class="form-input" id="m721-ex" onchange="m721State.selectedEx=this.value;render()">
+            <option value="">-- Selecciona --</option>
+            ${M721_EXCHANGES.map(e=>`<option value="${e.id}" ${m721State.selectedEx===e.id?"selected":""}>${e.label} ${e.foreign?"🌍":"🇪🇸"}</option>`).join("")}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Saldo total a 31/dic/${state.year} (€)</label>
+          <input type="number" class="form-input" id="m721-eur" placeholder="0.00" step="0.01"
+            value="${m721State.inputEur}"
+            oninput="m721State.inputEur=this.value"/>
+        </div>
+      </div>
+      ${m721State.selectedEx&&!M721_EXCHANGES.find(e=>e.id===m721State.selectedEx)?.foreign
+        ?`<div class="alert alert-green" style="margin-bottom:8px">✅ Este exchange tiene sede en España — <strong>no computa para el M721</strong>. Se guarda como referencia.</div>`
+        :""}
+      <button class="btn-primary" onclick="
+        const ex = M721_EXCHANGES.find(e=>e.id===m721State.selectedEx);
+        if (!ex || !m721State.inputEur) return;
+        addBalance(ex.id, ex.label, m721State.inputEur, ex.foreign);
+        m721State = {adding:false, selectedEx:null, inputEur:''};
+        render();
+      ">✅ Guardar saldo</button>
+    </div>` : ""}
+
+    ${hasData?`
+    <div style="overflow-x:auto;margin-bottom:12px">
+      <table>
+        <thead><tr><th>Exchange</th><th>Sede</th><th>Saldo a 31/dic</th><th>Computa M721</th><th></th></tr></thead>
+        <tbody>
+          ${state.balances.map(b=>`
+          <tr>
+            <td class="fw7">${b.label}</td>
+            <td><span style="font-size:11px">${b.foreign?"🌍 Extranjero":"🇪🇸 España"}</span></td>
+            <td class="${b.eur>0?"c-gold fw7":"c-dim"}">${fmt(b.eur)} €</td>
+            <td>${b.foreign&&b.eur>0
+              ?`<span style="color:var(--orange);font-weight:600;font-size:12px">SÍ</span>`
+              :`<span style="color:var(--green);font-size:12px">NO</span>`}
+            </td>
+            <td><button class="btn-icon" onclick="deleteBalance('${b.exchangeId}')">🗑</button></td>
+          </tr>`).join("")}
+        </tbody>
+        <tfoot>
+          <tr style="border-top:2px solid var(--bor2)">
+            <td colspan="2" class="fw7">Total exchanges extranjeros</td>
+            <td class="${needs?"c-red":"c-gold"} fw7">${fmt(total)} €</td>
+            <td colspan="2"><span style="font-size:11px;color:var(--dim)">Umbral: 50.000 €</span></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    ${needs?`
+    <div style="background:var(--sur2);border:1px solid var(--bor);border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">📋 Listado para el Modelo 721</div>
+      ${state.balances.filter(b=>b.foreign&&b.eur>0).map(b=>`
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--bd);font-size:13px">
+        <span class="fw7">${b.label}</span>
+        <span class="c-gold fw7">${fmt(b.eur)} €</span>
+      </div>`).join("")}
+      <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:14px;font-weight:700">
+        <span>TOTAL</span><span class="c-red">${fmt(total)} €</span>
+      </div>
+      <div class="alert alert-orange" style="margin-top:8px;font-size:12px">
+        ⚠️ Los valores deben ser el <strong>valor de mercado en EUR a 31 de diciembre</strong> de ${state.year}, no el precio de compra. Usa CoinGecko o la valoración oficial del exchange.
+      </div>
+    </div>` : ""}
+    `:""}
+  </div>`;
 }
 
 // Format qty with up to 8 decimals, trimming trailing zeros
