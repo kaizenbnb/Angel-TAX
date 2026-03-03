@@ -34,13 +34,36 @@ jobs:
               args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu']
             });
             const page = await browser.newPage();
-            page.on('console', m => process.stdout.write(m.text() + '\n'));
             await page.goto('http://localhost:8080', { waitUntil: 'networkidle2', timeout: 30000 });
-            const results = await page.evaluate(() => selfCheck());
+
+            // selfCheck() opens a modal — call it and read the DOM results
+            await page.evaluate(() => selfCheck());
+            await page.waitForTimeout(500);
+
+            const results = await page.evaluate(() => {
+              const rows = document.querySelectorAll('table tr, .check-row, [data-test]');
+              if (!rows.length) {
+                // Try reading the modal text for PASS/FAIL info
+                const body = document.body.innerText;
+                const passed = (body.match(/PASSED/gi) || []).length;
+                const failed = (body.match(/FAILED/gi) || []).length;
+                const allPass = body.includes('ALL PASS');
+                return { passed, failed, allPass, raw: body.substring(body.indexOf('Self-Check'), body.indexOf('Self-Check') + 300) };
+              }
+              return { rows: rows.length };
+            });
+
+            console.log('Results:', JSON.stringify(results));
             await browser.close();
-            const failed = results.filter(r => !r.pass);
-            results.forEach(r => console.log('[' + (r.pass ? 'PASS' : 'FAIL') + '] ' + r.name + ': got=' + r.got + ' expected=' + r.expected));
-            if (failed.length > 0) { console.error(failed.length + ' test(s) FAILED'); process.exit(1); }
-            console.log('All ' + results.length + ' tests PASSED ✓');
+
+            const passed = results.passed || 0;
+            const failed = results.failed || 0;
+            const allPass = results.allPass;
+
+            if (!allPass || failed > 0) {
+              console.error('FAILED: ' + failed + ' test(s) failed');
+              process.exit(1);
+            }
+            console.log('ALL PASS (' + passed + ' tests)');
           })().catch(e => { console.error(e); process.exit(1); });
           "
