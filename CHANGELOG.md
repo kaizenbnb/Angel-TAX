@@ -5,6 +5,25 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es/) · Versionado: [SemV
 
 ---
 
+## [1.0.1] — 2026-03-03
+
+### 🔧 CI y calidad
+
+#### GitHub Actions
+- Workflow CI que ejecuta `selfCheck()` via Puppeteer headless (PR-07)
+- El CI valida los 10 golden cases en cada push/PR a main
+- Badge de estado del CI disponible en README
+
+#### Dependabot
+- `.github/dependabot.yml` configurado para npm y GitHub Actions
+- Actualizaciones automáticas de dependencias semanales
+
+#### Documentacion
+- `AUDIT_REPORT.md` actualizado a v1.0.1: puntuación 60/60
+- `KNOWN_LIMITATIONS.md` actualizado: limitación #11 resuelta
+
+---
+
 ## [1.0.0] — 2026-03-03
 
 ### 🚀 Primera versión estable
