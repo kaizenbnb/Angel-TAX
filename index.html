@@ -384,6 +384,9 @@ function renderHeader() {
           <div style="font-size:9px;color:var(--mut)">${dl.sub}</div>
         </div>
         <!-- CCAA pill -->
+        <div style="background:var(--rd);border:1px solid var(--red);border-radius:20px;padding:5px 14px;cursor:pointer;font-size:11px;color:var(--red)" onclick="resetAll()" title="Borrar todas las operaciones y empezar de nuevo">
+          🗑 Borrar Todo
+        </div>
         <div style="background:var(--bd);border:1px solid var(--bor);border-radius:20px;padding:5px 14px;cursor:pointer;font-size:11px;color:var(--blue)" onclick="openProfile()" title="Cambiar comunidad autónoma">
           🏛️ ${ccaa.name.split(" ")[0]}
         </div>
@@ -2833,6 +2836,17 @@ function saveProfile() {
   document.body.appendChild(banner);
   setTimeout(()=>banner.remove(), 2500);
 }
+
+  function resetAll() {
+    if (!confirm('\u00BFSeguro que quieres borrar todas las operaciones y empezar de nuevo?\n\nEsta acci\u00F3n no se puede deshacer.')) return;
+    state.ops = [];
+    state.lots = [];
+    state.balances = {};
+    state.year = new Date().getFullYear().toString();
+    state.costMethod = 'fifo';
+    saveState();
+    render();
+  }
 
 function renderPrivacyBar() {
   return `<div class="privacy-bar">
