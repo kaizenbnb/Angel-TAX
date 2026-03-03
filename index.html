@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://api.anthropic.com; img-src 'self' data: blob:; object-src 'none'; base-uri 'self'"/>
   <title>Angel Tax — Fiscalidad Cripto España</title>
   <meta name="description" content="La herramienta definitiva para la fiscalidad de criptomonedas en España. Open source, gratuita y 100% privada."/>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 5 L15 20 L15 60 Q15 85 50 95 Q85 85 85 60 L85 20 Z' fill='%231e3a6e' stroke='%236ab0f5' stroke-width='3'/%3E%3Cpath d='M50 5 L15 20 L15 60 Q15 85 50 95 Q32 85 32 60 L32 20 Z' fill='%232a5298' opacity='0.7'/%3E%3C/svg%3E"/>
@@ -109,6 +110,13 @@
 <div id="app"></div>
 
 <script>
+// ═══════════════════════════════════════════
+// METADATA
+// ═══════════════════════════════════════════
+const APP_VERSION     = "1.0.0";
+const RULESET_VERSION = "2025-ES-v1";   // Normativa AEAT aplicada
+const BUILD_DATE      = "2026-03-03";
+
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
@@ -284,6 +292,11 @@ function render() {
     ${currentTab==="report" ? renderReport(sm)  : ""}
     ${currentTab==="guide"  ? renderGuide()     : ""}
     ${renderPrivacyBar()}
+    <div style="text-align:center;padding:16px 0 8px;font-size:11px;color:var(--mut)">
+      Angel Tax v${APP_VERSION} · Ruleset ${RULESET_VERSION} · ${BUILD_DATE} ·
+      <a href="https://github.com/kaizenbnb/Angel-TAX" target="_blank" rel="noopener" style="color:var(--mut);text-decoration:none">GitHub</a> ·
+      <span style="cursor:pointer;color:var(--mut)" onclick="selfCheck()">🧪 self-check</span>
+    </div>
   `;
   attachEvents();
 }
@@ -361,7 +374,7 @@ function renderHeader() {
 </svg></div>
         <div>
           <h1>Angel Tax</h1>
-          <span>Fiscalidad Cripto · España</span>
+          <span>Fiscalidad Cripto · España · <span style="color:var(--gold);font-weight:700">v${APP_VERSION}</span></span>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -999,6 +1012,8 @@ function renderReport(sm) {
       </div>
       <button class="btn-primary" onclick="downloadReport()">⬇️ Descargar .txt</button>
       <button class="btn-sec" style="color:var(--red);border-color:var(--red)" onclick="clearSavedState()">🗑 Borrar todo</button>
+      <button class="btn-sec" style="color:var(--blue);border-color:var(--blue)" onclick="loadDemoData()">🎭 Cargar demo</button>
+      <button class="btn-sec" style="color:var(--dim)" onclick="selfCheck()">🧪 Self-Check</button>
     </div>
 
     <div class="card" style="border-color:var(--bor2)">
@@ -1406,7 +1421,16 @@ function parseCSV(text, type) {
     }
   }
 
-  return { ops, lots, errors };
+  // ── Dedupe: eliminar ops duplicadas por date+asset+type+gain ──
+  const seen = new Set();
+  const deduped = ops.filter(op => {
+    const key = `${op.date}|${op.asset}|${op.type}|${Math.round((op.gain||0)*100)}|${Math.round((op.trans||0)*100)}`;
+    if (seen.has(key)) { errors.push(`Duplicado omitido: ${op.date} ${op.asset} ${op.typeName}`); return false; }
+    seen.add(key);
+    return true;
+  });
+
+  return { ops: deduped, lots, errors };
 }
 
 function detectSeparator(line) {
@@ -1433,12 +1457,38 @@ function parseCsvLine(line, sep) {
 }
 
 function toNum(s) {
-  if (!s || s==="N/A" || s==="-") return 0;
-  // Handle European number format (1.234,56 → 1234.56)
-  const cleaned = s.replace(/[€$£\s]/g,"").replace(",",".");
-  // If there are multiple dots, it's European thousands separator
-  const dots = (cleaned.match(/\./g)||[]).length;
-  if (dots > 1) return parseFloat(cleaned.replace(/\./g,"").replace(",","."));
+  if (!s || s==="N/A" || s==="-" || s==="") return 0;
+  // Strip currency symbols and whitespace
+  let cleaned = String(s).replace(/[€$£\s%]/g, "").trim();
+  if (!cleaned || cleaned==="-") return 0;
+
+  const commas = (cleaned.match(/,/g)||[]).length;
+  const dots   = (cleaned.match(/\./g)||[]).length;
+
+  // European format: 1.234.567,89  → multiple dots as thousands sep, comma as decimal
+  if (dots > 1) {
+    cleaned = cleaned.replace(/\./g,"").replace(",",".");
+  }
+  // European format: 1.234,56 → dot as thousands sep, comma as decimal
+  else if (commas === 1 && dots === 1 && cleaned.lastIndexOf(",") > cleaned.lastIndexOf(".")) {
+    cleaned = cleaned.replace(".","").replace(",",".");
+  }
+  // Pure comma decimal: 1,23 or 1,234 (no dot at all)
+  else if (commas === 1 && dots === 0) {
+    const afterComma = cleaned.split(",")[1];
+    // If <= 2 digits after comma: it's a decimal separator
+    if (afterComma && afterComma.length <= 2) {
+      cleaned = cleaned.replace(",",".");
+    } else {
+      // Thousands separator (e.g. 1,234) → remove comma
+      cleaned = cleaned.replace(",","");
+    }
+  }
+  // Multiple commas as thousands: 1,234,567
+  else if (commas > 1) {
+    cleaned = cleaned.replace(/,/g,"");
+  }
+
   return parseFloat(cleaned) || 0;
 }
 
@@ -1992,7 +2042,108 @@ function cancelImport() {
 }
 
 // ═══════════════════════════════════════════
-// AI DOCUMENT ANALYZER
+// SELF-CHECK — Golden cases (PR-07)
+// ═══════════════════════════════════════════
+function selfCheck() {
+  const results = [];
+  let passed = 0, failed = 0;
+
+  function check(name, got, expected, tolerance=0.01) {
+    const ok = Math.abs(Number(got) - Number(expected)) <= tolerance;
+    results.push({ name, ok, got, expected });
+    if (ok) passed++; else failed++;
+  }
+
+  // TC-01: Venta simple con ganancia
+  check("TC-01 Venta simple ganancia", 15000 - 10000 - 50, 4950);
+
+  // TC-02: Venta con pérdida
+  check("TC-02 Venta con pérdida", 12000 - 20000 - 30, -8030);
+
+  // TC-03: Staking — valor EUR correcto
+  check("TC-03 Staking renta", 450, 450);
+
+  // TC-04: toNum decimal europeo — coma simple
+  check("TC-04 toNum '1,23'", toNum("1,23"), 1.23);
+
+  // TC-05: toNum formato europeo con miles
+  check("TC-05 toNum '1.234,56'", toNum("1.234,56"), 1234.56);
+
+  // TC-06: toNum miles con coma americana
+  check("TC-06 toNum '1,234'", toNum("1,234"), 1234);
+
+  // TC-07: toNum con símbolo €
+  check("TC-07 toNum '1.500,00 €'", toNum("1.500,00 €"), 1500);
+
+  // TC-08: FIFO — dos lotes, venta 1.5 BTC
+  const lotsBackup = JSON.parse(JSON.stringify(state.lots));
+  state.lots = [
+    { id:"t1", asset:"BTC", date:"2024-01-01", qty:1, qtyRemaining:1, pricePerUnit:30000, totalEur:30000, fees:0 },
+    { id:"t2", asset:"BTC", date:"2024-06-01", qty:1, qtyRemaining:1, pricePerUnit:40000, totalEur:40000, fees:0 },
+  ];
+  const fifo = fifoCalc("BTC", 1.5, 0);
+  check("TC-08 FIFO coste 1.5 BTC", fifo ? fifo.totalAcq : -1, 50000); // 30000 + 0.5×40000
+  state.lots = lotsBackup;
+
+  // TC-09: Tramo IRPF 19% (base 6.000 €)
+  check("TC-09 Tramo 19%", calcTax(6000), 6000 * 0.19, 1);
+
+  // TC-10: sanitize XSS
+  const xssInput = "<scr"+"ipt>alert(1)<\/scr"+"ipt>";
+  const xss = sanitize(xssInput);
+  const xssOk = xss.includes("&lt;") && !xss.includes("<scr"+"ipt>");
+  results.push({ name:"TC-10 sanitize XSS", ok:xssOk, got: xssOk?"sin <script>":"CON <script>", expected:"sin <script>" });
+  if (xssOk) passed++; else failed++;
+
+  // Render modal
+  const modal = document.createElement("div");
+  modal.id = "selfcheck-modal";
+  modal.innerHTML = `
+    <div style="position:fixed;inset:0;background:#000b;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px">
+      <div style="background:var(--sur);border:1px solid var(--bor2);border-radius:16px;padding:28px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px #000a">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <div>
+            <div style="font-weight:700;font-size:16px">🧪 Self-Check</div>
+            <div style="font-size:11px;color:var(--dim)">v${APP_VERSION} · ${RULESET_VERSION} · ${BUILD_DATE}</div>
+          </div>
+          <button onclick="document.getElementById('selfcheck-modal').remove()" style="background:none;border:none;color:var(--dim);font-size:20px;cursor:pointer">✕</button>
+        </div>
+        <div style="display:flex;gap:12px;margin-bottom:16px">
+          <div style="background:var(--gd);border:1px solid var(--green);border-radius:8px;padding:10px 20px;text-align:center;flex:1">
+            <div style="font-size:28px;font-weight:700;color:var(--green)">${passed}</div>
+            <div style="font-size:11px;color:var(--dim);text-transform:uppercase">Passed</div>
+          </div>
+          <div style="background:${failed>0?"var(--rd)":"var(--gd)"};border:1px solid ${failed>0?"var(--red)":"var(--green)"};border-radius:8px;padding:10px 20px;text-align:center;flex:1">
+            <div style="font-size:28px;font-weight:700;color:${failed>0?"var(--red)":"var(--green)"}">${failed}</div>
+            <div style="font-size:11px;color:var(--dim);text-transform:uppercase">Failed</div>
+          </div>
+          <div style="flex:2;display:flex;align-items:center;justify-content:center;background:var(--sur2);border-radius:8px;border:1px solid var(--bor)">
+            <span style="font-size:28px">${failed===0?"✅":"❌"}</span>
+            <span style="font-weight:700;font-size:15px;margin-left:10px;color:${failed===0?"var(--green)":"var(--red)"}">${failed===0?"ALL PASS":"${failed} FAIL"}</span>
+          </div>
+        </div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+          <thead><tr style="color:var(--dim);font-size:11px;text-transform:uppercase">
+            <th style="padding:6px 8px;text-align:left">Test</th>
+            <th style="padding:6px 8px;text-align:right">Obtenido</th>
+            <th style="padding:6px 8px;text-align:right">Esperado</th>
+            <th style="padding:6px 8px;text-align:center">Estado</th>
+          </tr></thead>
+          <tbody>
+            ${results.map(r=>`<tr style="border-top:1px solid var(--bd)">
+              <td style="padding:6px 8px;color:var(--text)">${r.name}</td>
+              <td style="padding:6px 8px;font-family:monospace;color:var(--dim);text-align:right">${typeof r.got==="number"?r.got.toFixed(4):String(r.got).substring(0,25)}</td>
+              <td style="padding:6px 8px;font-family:monospace;color:var(--dim);text-align:right">${typeof r.expected==="number"?r.expected.toFixed(4):String(r.expected).substring(0,25)}</td>
+              <td style="padding:6px 8px;text-align:center;font-weight:700;color:${r.ok?"var(--green)":"var(--red)"}">${r.ok?"✅":"❌"}</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  const existing = document.getElementById("selfcheck-modal");
+  if (existing) existing.remove();
+  document.body.appendChild(modal);
+}
 // ═══════════════════════════════════════════
 let analyzeState = {
   file: null, fileName: "", fileType: "", loading: false,
@@ -2009,7 +2160,7 @@ function renderAnalyze() {
     <div class="card-sub" style="margin-bottom:20px">Sube cualquier informe fiscal y la IA extrae automáticamente tus datos</div>
 
     <div class="alert alert-gold">
-      🔒 <strong>Privacidad:</strong> Tu documento se envía únicamente a la API de Anthropic para su análisis. No se almacena en ningún servidor propio. Puedes anonimizar tu nombre antes de subir.
+      🔒 <strong>Privacidad:</strong> Tu documento se envía a la API de <strong>Anthropic (Claude)</strong> para su análisis. <strong>No se almacena en ningún servidor propio.</strong> Anthropic puede conservar datos según su política de privacidad en <a href="https://www.anthropic.com/privacy" target="_blank" rel="noopener" style="color:var(--gold2)">anthropic.com/privacy</a>. Se envía únicamente el contenido del archivo (máx. 80.000 caracteres). Puedes anonimizar nombres y DNI antes de subir.
     </div>
 
     <!-- FORMATOS SOPORTADOS -->
@@ -2386,7 +2537,7 @@ function generatePDFReport() {
   doc.setFont("helvetica","normal");
   doc.setTextColor(122, 133, 168);
   doc.text("Informe Fiscal Criptomonedas · España", margin, 26);
-  doc.text(`Ejercicio ${state.year} · Generado: ${new Date().toLocaleDateString("es-ES")}`, margin, 33);
+  doc.text(`Ejercicio ${state.year} · Generado: ${new Date().toLocaleDateString("es-ES")} · v${APP_VERSION} · ${RULESET_VERSION}`, margin, 33);
   if (r.exchange) doc.text(`Exchange: ${r.exchange}`, pageW - margin - 40, 26);
 
   // Personal data block
@@ -3160,8 +3311,9 @@ function downloadReport() {
   ] : [];
 
   const lines = [
-    "ANGEL TAX — INFORME FISCAL CRIPTO " + state.year,
+    "ANGEL TAX v" + APP_VERSION + " — INFORME FISCAL CRIPTO " + state.year,
     "Generado: " + new Date().toLocaleDateString("es-ES"),
+    "Ruleset: " + RULESET_VERSION,
     "Método coste: " + (state.costMethod === "specific" ? "Identificación específica (TSJPV 2025)" : "FIFO (estándar AEAT)"),
     "=".repeat(50), "",
     "BASE DEL AHORRO:       " + fmt(sm.base) + "  (tramos 19%-30%)",
@@ -3234,13 +3386,50 @@ function clearSavedState() {
   render();
 }
 
+function loadDemoData() {
+  if (state.ops.length > 0 || state.lots.length > 0) {
+    if (!confirm("Esto reemplazará todos tus datos actuales con datos de ejemplo. ¿Continuar?")) return;
+  }
+  state = {
+    year: "2024",
+    costMethod: "fifo",
+    balances: [
+      { exchangeId:"coinbase",  label:"Coinbase",  eur:32000, foreign:true },
+      { exchangeId:"kraken",    label:"Kraken",    eur:21500, foreign:true },
+      { exchangeId:"bit2me",    label:"Bit2Me",    eur: 4800, foreign:false },
+    ],
+    lots: [
+      { id:"demo-l1", asset:"BTC", date:"2024-01-15", qty:0.5, qtyRemaining:0.5, pricePerUnit:38000, totalEur:19000, fees:12 },
+      { id:"demo-l2", asset:"ETH", date:"2024-02-20", qty:3,   qtyRemaining:1.5, pricePerUnit:2800,  totalEur:8400,  fees:8  },
+      { id:"demo-l3", asset:"SOL", date:"2024-03-10", qty:50,  qtyRemaining:50,  pricePerUnit:140,   totalEur:7000,  fees:5  },
+    ],
+    ops: [
+      { id:"demo-o1", type:"compraventa", typeName:"Compraventa", asset:"ETH",  date:"2024-05-12", acq:4200,  trans:6900,  fees:28, gain:2672,  casilla:"1800", notes:"Venta ETH — Coinbase (demo)" },
+      { id:"demo-o2", type:"compraventa", typeName:"Compraventa", asset:"BNB",  date:"2024-07-03", acq:800,   trans:1200,  fees:15, gain:385,   casilla:"1800", notes:"Venta BNB — Binance (demo)" },
+      { id:"demo-o3", type:"compraventa", typeName:"Compraventa", asset:"DOGE", date:"2024-09-22", acq:2200,  trans:1100,  fees:10, gain:-1110, casilla:"1800", notes:"Venta DOGE con pérdida (demo)" },
+      { id:"demo-o4", type:"staking",     typeName:"Staking",     asset:"ETH",  date:"2024-03-31", acq:0,     trans:320,   fees:0,  gain:320,   casilla:"0033", notes:"Staking rewards ETH (demo)" },
+      { id:"demo-o5", type:"staking",     typeName:"Staking",     asset:"ADA",  date:"2024-06-30", acq:0,     trans:180,   fees:0,  gain:180,   casilla:"0033", notes:"Staking ADA (demo)" },
+      { id:"demo-o6", type:"airdrop",     typeName:"Airdrop",     asset:"ARB",  date:"2024-04-15", acq:0,     trans:250,   fees:0,  gain:250,   casilla:"1626", notes:"Airdrop Arbitrum (demo)" },
+    ],
+  };
+  saveState();
+  currentTab = "report";
+  render();
+  const b = document.createElement("div");
+  b.style.cssText = "position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#0a1a2e;border:1px solid var(--blue);color:var(--blue);padding:12px 24px;border-radius:10px;font-weight:600;font-size:14px;z-index:999;box-shadow:0 4px 20px #000a";
+  b.textContent = "🎭 Datos de demo cargados — 6 operaciones, 3 lotes, 3 exchanges";
+  document.body.appendChild(b);
+  setTimeout(()=>b.remove(), 4000);
+}
+
 // ═══════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════
 loadState();
 render();
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
+<!-- SRI hashes: verify at https://www.srihash.org/ before production deploy -->
 </body>
 </html>
