@@ -1013,7 +1013,8 @@ function renderReport(sm) {
         <div class="card-title">📄 Informe Fiscal ${state.year}</div>
         <div class="card-sub">Resumen para completar tu declaración de la renta</div>
       </div>
-      <button class="btn-primary" onclick="downloadReport()">⬇️ Descargar .txt</button>
+      <button class="btn-secondary" onclick="downloadReport()" style="border-color:var(--border2)">⬇️ .txt</button>
+      <button class="btn-primary" onclick="generatePDFReport()">📄 Descargar PDF</button>
       <button class="btn-sec" style="color:var(--red);border-color:var(--red)" onclick="clearSavedState()">🗑 Borrar todo</button>
       <button class="btn-sec" style="color:var(--blue);border-color:var(--blue)" onclick="loadDemoData()">🎭 Cargar demo</button>
       <button class="btn-sec" style="color:var(--dim)" onclick="selfCheck()">🧪 Self-Check</button>
