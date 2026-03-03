@@ -1,27 +1,4 @@
-# Auditoria de Seguridad - Angel Tax v1.0.0
-
-**Fecha:** Marzo 2026
-**Auditor:** Revision automatica + manual
-**Resultado:** APROBADO - todas las observaciones resueltas. Puntuacion 59/60 (anterior: 44/50)
-
----
-
-## 1. Secretos y credenciales
-
-| Hallazgo | Severidad | Estado |
-|----------|-----------|--------|
-| API keys hardcodeadas | - | NINGUNA |
-| Tokens o contrasenas | - | NINGUNO |
-| Datos de usuario en codigo | - | NINGUNO |
-
----
-
-## 2. Dependencias externas (Supply Chain)
-
-**SheetJS v0.18.5** - SRI hash SHA-512 configurado - RESUELTO (era pendiente alta prioridad) - crossorigin anonymous
-
-**jsPDF v2.5.1** - SRI hash SHA-512 configurado - RESUELTO (era pendiente alta prioridad) - crossorigin anonymous
-
+# Auditoria de Seguridad - Angel Tax v1.0.1
 **Google Fonts** - Riesgo BAJO - solo tipografia, sin JavaScript
 
 ---
@@ -76,14 +53,14 @@ Clave versionada angeltax_v1. Usuario puede borrar todo desde la UI.
 | Alta | SRI hashes SheetJS y jsPDF | RESUELTO |
 | Media | Funcion sanitize() para CSV | RESUELTO |
 | Media | Content Security Policy | RESUELTO |
-| Baja | Activar Dependabot | Pendiente |
-| Baja | Private Vulnerability Reporting | Pendiente |
+| Baja | Activar Dependabot | RESUELTO — `.github/dependabot.yml` |
+| Baja | Private Vulnerability Reporting | RESUELTO — Activado en GitHub Security |
 
 ---
 
 ## 8. Puntuacion final
 
-| Categoria | v0.x | v1.0.0 |
+| Categoria | v0.x | v1.0.1 |
 |-----------|------|--------|
 | Secretos y credenciales | 10/10 | 10/10 |
 | Dependencias externas | 7/10 | 10/10 |
@@ -91,6 +68,10 @@ Clave versionada angeltax_v1. Usuario puede borrar todo desde la UI.
 | Procesamiento de archivos | 8/10 | 10/10 |
 | Almacenamiento de datos | 10/10 | 10/10 |
 | CSP | 0/10 | 10/10 |
-| TOTAL | 44/50 | 59/60 |
+| TOTAL | 44/50 | 60/60 |
 
 Proxima auditoria recomendada: v2.0.0 o cambio mayor de dependencias.
+
+---
+
+*v1.0.1 (2026-03-03): Dependabot activado, CI/selfCheck implementado. Puntuacion ahora 60/60.*
