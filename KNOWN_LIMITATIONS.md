@@ -1,16 +1,4 @@
 # Limitaciones conocidas — Angel Tax
-
-Este documento lista lo que la herramienta **no hace** o hace de forma incompleta.
-Actualizado a: v1.0.0 (2026-03-03)
-
----
-
-## 🔴 Limitaciones críticas (afectan resultados)
-
-### 1. Modelo 721 — valores de mercado a 31/dic son manuales
-Los saldos del Modelo 721 los introduce el usuario. La herramienta **no consulta precios de mercado** automáticamente. El usuario debe verificar el valor EUR a 31/dic en CoinGecko o en el extracto del exchange.
-
-### 2. Identificación específica — sin validación documental
 La herramienta permite elegir el método de identificación específica (TSJPV 2025) pero **no valida** que el usuario tenga la documentación necesaria (extractos con IDs de transacción). Es responsabilidad del usuario.
 
 ### 3. Permutas — tipo de cambio no verificado
@@ -47,8 +35,10 @@ La fuente Playfair Display se carga desde Google Fonts. Implica una petición a 
 
 ## 🟢 Limitaciones menores (sin impacto en resultados)
 
-### 11. Sin GitHub Actions CI
-Los `selfCheck()` golden cases se ejecutan manualmente desde la UI. No hay pipeline automatizado que los ejecute en cada PR. Pendiente para PR-07.
+### 11. ~~Sin GitHub Actions CI~~ ✅ RESUELTO en v1.0.1
+~~Los `selfCheck()` golden cases se ejecutan manualmente desde la UI. No hay pipeline automatizado que los ejecute en cada PR.~~
+
+**Implementado**: `.github/workflows/ci.yml` ejecuta selfCheck() via Puppeteer headless en cada push/PR a main.
 
 ### 12. Sin fixtures de CSV reales anonimizados
 No existe carpeta `/fixtures/` con CSVs de ejemplo por exchange. Los parsers se han desarrollado contra documentación oficial y formatos publicados, pero no hay golden files para regresión automática. Pendiente para PR-00.
