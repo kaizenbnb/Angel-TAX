@@ -1,0 +1,46 @@
+name: CI — Self-Check Golden Cases
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  selfcheck:
+    name: Run selfCheck() golden cases (PR-07)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Puppeteer and serve
+        run: npm install --no-save puppeteer@22 serve
+
+      - name: Run selfCheck() via headless browser
+        run: |
+          npx serve . -l 8080 &
+          sleep 4
+          node -e "
+          const puppeteer = require('puppeteer');
+          (async () => {
+            const browser = await puppeteer.launch({
+              args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu']
+            });
+            const page = await browser.newPage();
+            page.on('console', m => process.stdout.write(m.text() + '\n'));
+            await page.goto('http://localhost:8080', { waitUntil: 'networkidle2', timeout: 30000 });
+            const results = await page.evaluate(() => selfCheck());
+            await browser.close();
+            const failed = results.filter(r => !r.pass);
+            results.forEach(r => console.log('[' + (r.pass ? 'PASS' : 'FAIL') + '] ' + r.name + ': got=' + r.got + ' expected=' + r.expected));
+            if (failed.length > 0) { console.error(failed.length + ' test(s) FAILED'); process.exit(1); }
+            console.log('All ' + results.length + ' tests PASSED ✓');
+          })().catch(e => { console.error(e); process.exit(1); });
+          "
