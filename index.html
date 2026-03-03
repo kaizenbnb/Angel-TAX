@@ -2841,7 +2841,7 @@ function saveProfile() {
     if (!confirm('\u00BFSeguro que quieres borrar todas las operaciones y empezar de nuevo?\n\nEsta acci\u00F3n no se puede deshacer.')) return;
     state.ops = [];
     state.lots = [];
-    state.balances = {};
+    state.balances = [];
     state.year = new Date().getFullYear().toString();
     state.costMethod = 'fifo';
     saveState();
@@ -3387,7 +3387,7 @@ function loadState() {
     const saved = JSON.parse(raw);
     if (saved.ops)       state.ops       = saved.ops;
     if (saved.lots)      state.lots      = saved.lots;
-    if (saved.balances)  state.balances  = saved.balances;
+    if (saved.balances)  state.balances  = Array.isArray(saved.balances) ? saved.balances : [];
     if (saved.year)      state.year      = saved.year;
     if (saved.costMethod) state.costMethod = saved.costMethod;
   } catch(e) { /* JSON inválido — ignorar */ }
