@@ -709,6 +709,14 @@ function renderHome(sm) {
 }
 
 
+function syncDate() {
+  const y = document.getElementById('f-year')?.value || '';
+  const m = document.getElementById('f-mon')?.value  || '';
+  const d = document.getElementById('f-day')?.value  || '';
+  const hidden = document.getElementById('f-date');
+  if (hidden) hidden.value = (y && m && d) ? y+'-'+m+'-'+d : '';
+}
+
 // ── COINGECKO HISTORICAL PRICE REFERENCE ────────────────────────────
 const COIN_IDS = {
   BTC:'bitcoin', ETH:'ethereum', SOL:'solana', BNB:'binancecoin',
@@ -823,7 +831,21 @@ function renderAdd() {
       </div>
       <div class="form-group">
         <label class="form-label">Fecha de operación</label>
-        <input type="date" class="form-input" id="f-date" value="${formData.date||""}" onchange="saveFormData();calcResult=null;render();setTimeout(fetchCoinPrice,0)"/>
+        <div style="display:flex;gap:8px;align-items:center">
+        <select class="form-input" id="f-day" style="flex:1" onchange="syncDate();saveFormData();calcResult=null;render();setTimeout(fetchCoinPrice,0)">
+          <option value="">Día</option>
+          ${Array.from({length:31},(_,i)=>{const d=String(i+1).padStart(2,'0');const fd=(formData.date||'').split('-')[2]||'';return `<option value="${d}" ${fd===d?'selected':''}>${d}</option>`;}).join('')}
+        </select>
+        <select class="form-input" id="f-mon" style="flex:2" onchange="syncDate();saveFormData();calcResult=null;render();setTimeout(fetchCoinPrice,0)">
+          <option value="">Mes</option>
+          ${[['01','Enero'],['02','Febrero'],['03','Marzo'],['04','Abril'],['05','Mayo'],['06','Junio'],['07','Julio'],['08','Agosto'],['09','Septiembre'],['10','Octubre'],['11','Noviembre'],['12','Diciembre']].map(([v,n])=>{const fm=(formData.date||'').split('-')[1]||'';return `<option value="${v}" ${fm===v?'selected':''}>${n}</option>`;}).join('')}
+        </select>
+        <select class="form-input" id="f-year" style="flex:1.5" onchange="syncDate();saveFormData();calcResult=null;render();setTimeout(fetchCoinPrice,0)">
+          <option value="">Año</option>
+          ${Array.from({length:10},(_,i)=>{const y=String(2025-i);const fy=(formData.date||'').split('-')[0]||'';return `<option value="${y}" ${fy===y?'selected':''}>${y}</option>`;}).join('')}
+        </select>
+        <input type="hidden" id="f-date" value="${formData.date||''}"/>
+      </div>
       <div id="price-ref" style="margin-top:6px;min-height:20px;font-size:11px;color:var(--dim)"></div>
       </div>
     </div>
