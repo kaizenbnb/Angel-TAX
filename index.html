@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://api.anthropic.com; img-src 'self' data: blob:; object-src 'none'; base-uri 'self'"/>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://api.anthropic.com https://api.coingecko.com; img-src 'self' data: blob:; object-src 'none'; base-uri 'self'"/>
   <title>Angel Tax — Fiscalidad Cripto España</title>
   <meta name="description" content="La herramienta definitiva para la fiscalidad de criptomonedas en España. Open source, gratuita y 100% privada."/>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 5 L15 20 L15 60 Q15 85 50 95 Q85 85 85 60 L85 20 Z' fill='%231e3a6e' stroke='%236ab0f5' stroke-width='3'/%3E%3Cpath d='M50 5 L15 20 L15 60 Q15 85 50 95 Q32 85 32 60 L32 20 Z' fill='%232a5298' opacity='0.7'/%3E%3C/svg%3E"/>
@@ -129,6 +129,12 @@ let openGuide = null;
 let showProfileModal = false;
 
 // ── Security: sanitize user-supplied strings before rendering in DOM ──
+/**
+ * Sanitiza strings para prevenir ataques XSS antes de insertar en DOM
+ * Escapa caracteres especiales HTML según OWASP
+ * @param {string} str - String a sanitizar
+ * @returns {string} String seguro para DOM
+ */
 function sanitize(str) {
   return String(str||"")
     .replace(/&/g,"&amp;")
@@ -241,6 +247,13 @@ const GUIDES = [
 // ═══════════════════════════════════════════
 // UTILITIES
 // ═══════════════════════════════════════════
+/**
+ * Calcula el IRPF sobre ganancias patrimoniales en España (IRPF 2025)
+ * Aplica tramos progresivos sobre base del ahorro (19% - 30%)
+ * Normativa: Art. 200-260 Ley 35/2006 (IRPF), AEAT consultas DGT
+ * @param {number} gain - Ganancia neta en euros
+ * @returns {number} Cuota de IRPF estimada a pagar
+ */
 function calcTax(gain) {
   if (gain <= 0) return 0;
   let tax = 0, remaining = gain, prev = 0;
@@ -262,7 +275,19 @@ function fmt(v) {
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).substr(2,5); }
 
+// ─────── CACHE PARA getSummary() ─────────
+let _summaryCache = null;
+let _lastOpsHash = "";
+
+/**
+ * Calcula resumen fiscal completo (casilla 1800, 0033, 1626)
+ * Memoizado: cachea resultado si state.ops.length no cambió
+ * @returns {Object} { gains, losses, net, staking, airdrops, base, tax, bracket }
+ */
 function getSummary() {
+  const currentHash = ""+state.ops.length+state.costMethod;
+  if (currentHash === _lastOpsHash && _summaryCache) return _summaryCache;
+  
   const gains    = state.ops.filter(o=>o.casilla==="1800"&&o.gain>0 ).reduce((s,o)=>s+o.gain, 0);
   const losses   = state.ops.filter(o=>o.casilla==="1800"&&o.gain<0 ).reduce((s,o)=>s+o.gain, 0);
   const staking  = state.ops.filter(o=>o.casilla==="0033"           ).reduce((s,o)=>s+o.gain, 0);
@@ -274,7 +299,11 @@ function getSummary() {
   const baseGeneral = airdrops + mineria; // informativo — no se calcula aquí el tipo
   const tax     = calcTax(baseAhorro);
   const bracket = BRACKETS.findIndex(b => baseAhorro <= b.max);
-  return { gains, losses, net:gains+losses, staking, airdrops, mineria, base:baseAhorro, baseGeneral, tax, bracket };
+  const result = { gains, losses, net:gains+losses, staking, airdrops, mineria, base:baseAhorro, baseGeneral, tax, bracket };
+  // guardar en cache antes de devolver
+  _lastOpsHash = currentHash;
+  _summaryCache = result;
+  return result;
 }
 
 // ═══════════════════════════════════════════
@@ -684,7 +713,7 @@ function renderHome(sm) {
     <div class="card">
       <div class="ff-serif" style="font-size:17px;margin-bottom:16px">Operaciones — Ejercicio ${state.year}</div>
       <div style="overflow-x:auto">
-        <table>
+        <table id="ops-table">
           <thead><tr><th>Fecha</th><th>Tipo</th><th>Activo</th><th>Qty</th><th>Adquisición</th><th>Transmisión</th><th>G/P Neta</th><th>Casilla</th><th></th></tr></thead>
           <tbody>
             ${state.ops.map(op=>`
@@ -700,13 +729,82 @@ function renderHome(sm) {
                 <td>${fmt(op.trans)}</td>
                 <td class="${op.gain>=0?"c-green":"c-red"} fw7">${op.gain>=0?"+":""}${fmt(op.gain)}</td>
                 <td><span class="casilla${op.casilla==="1800"||op.casilla==="0033"||op.casilla==="1626"?"":" casilla-gold"}">${op.casilla}</span></td>
-                <td><button class="btn-icon" onclick="deleteOp('${op.id}')">🗑</button></td>
+                <td><button class="btn-icon btn-delete-op" data-op-id="${op.id}">🗑</button></td>
               </tr>`).join("")}
           </tbody>
         </table>
       </div>
     </div>`;
 }
+
+
+function syncDate() {
+  const y = document.getElementById('f-year')?.value || '';
+  const m = document.getElementById('f-mon')?.value  || '';
+  const d = document.getElementById('f-day')?.value  || '';
+  const hidden = document.getElementById('f-date');
+  if (hidden) hidden.value = (y && m && d) ? y+'-'+m+'-'+d : '';
+}
+
+// ── COINGECKO HISTORICAL PRICE REFERENCE ────────────────────────────
+const COIN_IDS = {
+  BTC:'bitcoin', ETH:'ethereum', SOL:'solana', BNB:'binancecoin',
+  XRP:'ripple', ADA:'cardano', DOGE:'dogecoin', AVAX:'avalanche-2',
+  DOT:'polkadot', MATIC:'matic-network', LINK:'chainlink',
+  UNI:'uniswap', LTC:'litecoin', BCH:'bitcoin-cash', XLM:'stellar',
+  ATOM:'cosmos', FIL:'filecoin', TRX:'tron', ETC:'ethereum-classic',
+  NEAR:'near', ALGO:'algorand', VET:'vechain', SAND:'the-sandbox',
+  MANA:'decentraland', AXS:'axie-infinity', FTM:'fantom',
+  ONE:'harmony', HBAR:'hedera-hashgraph', EGLD:'elrond-erd-2',
+  THETA:'theta-token', XTZ:'tezos', EOS:'eos', AAVE:'aave',
+  COMP:'compound-governance-token', MKR:'maker', SNX:'havven',
+  YFI:'yearn-finance', SUSHI:'sushi', CRV:'curve-dao-token',
+  '1INCH':'1inch', GRT:'the-graph', CHZ:'chiliz', ENJ:'enjincoin',
+  BAT:'basic-attention-token', ZEC:'zcash', DASH:'dash',XMR:'monero',
+  OP:'optimism', ARB:'arbitrum', PEPE:'pepe', WIF:'dogwifcoin',
+  SHIB:'shiba-inu', FLOKI:'floki', BONK:'bonk', WLD:'worldcoin-wld',
+  SUI:'sui', APT:'aptos', INJ:'injective-protocol', SEI:'sei-network',
+  TIA:'celestia', PYTH:'pyth-network', JTO:'jito-governance-token',
+  RENDER:'render-token', FET:'fetch-ai', AGIX:'singularitynet',
+  OCEAN:'ocean-protocol', IMX:'immutable-x', LDO:'lido-dao',
+  RPL:'rocket-pool', RETH:'rocket-pool-eth', STETH:'staked-ether',
+  WBTC:'wrapped-bitcoin', USDT:'tether', USDC:'usd-coin', DAI:'dai',
+  BUSD:'binance-usd', TUSD:'true-usd', FRAX:'frax',
+};
+let _priceCache = {};
+
+async function fetchCoinPrice() {
+  const asset = (document.getElementById('f-asset')?.value||'').trim().toUpperCase();
+  const date  = document.getElementById('f-date')?.value; // yyyy-mm-dd
+  const box   = document.getElementById('price-ref');
+  if (!box) return;
+  if (!asset || !date) { box.innerHTML = ''; return; }
+  const coinId = COIN_IDS[asset];
+  if (!coinId) {
+    box.innerHTML = '💡 Precio ref: activo no reconocido (<a href="https://www.coingecko.com" target="_blank" style="color:var(--dim)">buscar en CoinGecko</a>)';
+    return;
+  }
+  const cacheKey = coinId + '_' + date;
+  if (_priceCache[cacheKey]) { box.innerHTML = _priceCache[cacheKey]; return; }
+  box.innerHTML = '⏳ Consultando precio histórico...';
+  try {
+    const [y,m,d] = date.split('-');
+    const geckoDate = d+'-'+m+'-'+y; // dd-mm-yyyy
+    const url = 'https://api.coingecko.com/api/v3/coins/'+coinId+'/history?date='+geckoDate+'&localization=false';
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    const data = await r.json();
+    const eur = data?.market_data?.current_price?.eur;
+    if (eur == null) throw new Error('sin datos EUR');
+    const fmt = new Intl.NumberFormat('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}).format(eur);
+    const html = '💡 Precio ref. CoinGecko ' + date + ': <strong style="color:var(--gold2)">' + fmt + ' €</strong> / ' + asset;
+    _priceCache[cacheKey] = html;
+    box.innerHTML = html;
+  } catch(e) {
+    box.innerHTML = '⚠️ No se pudo obtener el precio histórico';
+  }
+}
+// ────────────────────────────────────────────────────────────────────
 
 function renderAdd() {
   if (!currentOpType) {
@@ -758,11 +856,26 @@ function renderAdd() {
     <div class="form-grid">
       <div class="form-group">
         <label class="form-label">Criptomoneda / Activo</label>
-        <input class="form-input" id="f-asset" placeholder="BTC, ETH, SOL..." value="${formData.asset||""}" onchange="saveFormData();calcResult=null;render()"/>
+        <input class="form-input" id="f-asset" placeholder="BTC, ETH, SOL..." value="${formData.asset||""}" onchange="saveFormData();calcResult=null;render();setTimeout(fetchCoinPrice,0)"/>
       </div>
       <div class="form-group">
         <label class="form-label">Fecha de operación</label>
-        <input type="date" class="form-input" id="f-date" value="${formData.date||""}"/>
+        <div style="display:flex;gap:8px;align-items:center">
+        <select class="form-input" id="f-day" style="flex:1" onchange="syncDate();saveFormData();calcResult=null;render();setTimeout(fetchCoinPrice,0)">
+          <option value="">Día</option>
+          ${Array.from({length:31},(_,i)=>{const d=String(i+1).padStart(2,'0');const fd=(formData.date||'').split('-')[2]||'';return `<option value="${d}" ${fd===d?'selected':''}>${d}</option>`;}).join('')}
+        </select>
+        <select class="form-input" id="f-mon" style="flex:2" onchange="syncDate();saveFormData();calcResult=null;render();setTimeout(fetchCoinPrice,0)">
+          <option value="">Mes</option>
+          ${[['01','Enero'],['02','Febrero'],['03','Marzo'],['04','Abril'],['05','Mayo'],['06','Junio'],['07','Julio'],['08','Agosto'],['09','Septiembre'],['10','Octubre'],['11','Noviembre'],['12','Diciembre']].map(([v,n])=>{const fm=(formData.date||'').split('-')[1]||'';return `<option value="${v}" ${fm===v?'selected':''}>${n}</option>`;}).join('')}
+        </select>
+        <select class="form-input" id="f-year" style="flex:1.5" onchange="syncDate();saveFormData();calcResult=null;render();setTimeout(fetchCoinPrice,0)">
+          <option value="">Año</option>
+          ${Array.from({length:10},(_,i)=>{const y=String(2025-i);const fy=(formData.date||'').split('-')[0]||'';return `<option value="${y}" ${fy===y?'selected':''}>${y}</option>`;}).join('')}
+        </select>
+        <input type="hidden" id="f-date" value="${formData.date||''}"/>
+      </div>
+      <div id="price-ref" style="margin-top:6px;min-height:20px;font-size:11px;color:var(--dim)"></div>
       </div>
     </div>
 
@@ -2902,6 +3015,15 @@ function getLotsForAsset(asset) {
     .sort((a,b) => a.date.localeCompare(b.date));
 }
 
+/**
+ * Motor FIFO para cálculo de coste de adquisición de venta
+ * Obligatorio por AEAT para activos homogéneos (primeros en entrar, primeros en salir).
+ * Si se elige identificación específica (TSJPV 2025) se puede seleccionar lote concreto.
+ * @param {string} asset - Símbolo del activo (e.g. BTC, ETH)
+ * @param {number} qtySold - Cantidad vendida
+ * @param {number} saleFees - Comisiones de venta (no se usa aquí, queda para posible extensión)
+ * @returns {Object|null} { totalAcq, lotsUsed, qtyFound, warning } o null si no hay lotes
+ */
 function fifoCalc(asset, qtySold, saleFees) {
   const lots = getLotsForAsset(asset);
   if (lots.length === 0) return null; // No lots → fallback a modo manual
@@ -3362,6 +3484,17 @@ function attachEvents() {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", ()=>saveFormData());
   });
+  
+  // Event delegation: una sola escucha para eliminar operaciones
+  const opsTable = document.getElementById("ops-table");
+  if (opsTable) {
+    opsTable.addEventListener("click", e => {
+      const btn = e.target.closest(".btn-delete-op");
+      if (btn && btn.dataset.opId) {
+        deleteOp(btn.dataset.opId);
+      }
+    });
+  }
 }
 
 // ═══════════════════════════════════════════
