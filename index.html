@@ -103,6 +103,9 @@
     .fw7{font-weight:700} .ff-serif{font-family:'Playfair Display',serif}
     select{background:var(--sur2);border:1px solid var(--bor);border-radius:8px;color:var(--text);padding:5px 10px;font-size:12px;font-family:'DM Sans',system-ui;outline:none}
     a{color:var(--blue)}
+    /* ICONS */
+    .icon{vertical-align:middle;width:16px;height:16px}
+    .icon-large{vertical-align:middle;width:28px;height:28px}
     /* FOOTER */
     #footer{background:var(--sur);border-top:1px solid var(--bor);padding:24px;margin-top:60px;text-align:center;font-size:12px;color:var(--dim);line-height:1.6}
     #footer a{color:var(--blue);text-decoration:none}
@@ -338,6 +341,7 @@ function render() {
     </div>
   `;
   attachEvents();
+  if (window.feather) feather.replace();
 }
 
 // ═══════════════════════════════════════════
@@ -457,7 +461,7 @@ function renderNav(sm) {
   ];
   return `<div class="nav">${tabs.map(t=>`
     <button onclick="goTab('${t.id}')" class="${currentTab===t.id?"active":""}">
-      ${t.icon} ${t.label}
+      <i data-feather="${t.icon}" class="icon"></i> ${t.label}
       ${t.id==="home"&&sm&&sm.base>0?`<span class="cnt">${state.ops.length}</span>`:""}
     </button>`).join("")}
   </div>`;
@@ -664,7 +668,7 @@ function renderHome(sm) {
         {icon:"📚", t:"Guía fiscal completa",  d:"DeFi, LP pools, lending, Chainalysis, Modelo 721, compensaciones", tab:"guide"},
       ].map(f=>`
         <div onclick="goTab('${f.tab}')" style="background:var(--sur2);border:1px solid var(--bor);border-radius:10px;padding:16px;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--bor2)'" onmouseout="this.style.borderColor='var(--bor)'">
-          <div style="font-size:22px;margin-bottom:8px">${f.icon}</div>
+          <div style="font-size:22px;margin-bottom:8px"><i data-feather="${f.icon}" class="icon-large"></i></div>
           <div style="font-weight:600;font-size:13px;margin-bottom:4px">${f.t}</div>
           <div style="font-size:11px;color:var(--mut);line-height:1.5">${f.d}</div>
         </div>`).join("")}
@@ -821,7 +825,7 @@ function renderAdd() {
       <div class="op-grid">
         ${OPS.map(op=>`
           <div class="op-card" onclick="selectOpType('${op.id}')">
-            <div style="font-size:28px;margin-bottom:10px">${op.icon}</div>
+            <div style="font-size:28px;margin-bottom:10px"><i data-feather="${op.icon}" class="icon-large"></i></div>
             <div style="font-weight:600;margin-bottom:4px">${op.name}</div>
             <div style="font-size:12px;color:var(--dim);margin-bottom:12px">${op.desc}</div>
             ${op.noTax
@@ -843,7 +847,7 @@ function renderAdd() {
   return `<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:12px">
       <div>
-        <div class="card-title">${op.icon} ${op.name}</div>
+        <div class="card-title"><i data-feather="${op.icon}" class="icon"></i> ${op.name}</div>
         <div class="card-sub">Casilla: <span class="casilla${op.isGeneral?" casilla-gold":""}">${op.casilla}</span></div>
       </div>
       <button class="btn-sec" onclick="selectOpType(null)">← Cambiar tipo</button>
@@ -3781,6 +3785,7 @@ function loadDemoData() {
 loadState();
 render();
 </script>
+<script src="https://unpkg.com/feather-icons"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" crossorigin="anonymous"></script>
 </body>
