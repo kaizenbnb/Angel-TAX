@@ -2269,7 +2269,7 @@ function selfCheck() {
 // ═══════════════════════════════════════════
 let analyzeState = {
   file: null, fileName: "", fileType: "", loading: false,
-  result: null, error: null, previewOps: null, previewSummary: null
+  result: null, error: null, previewOps: null, previewSummary: null, awaitingConsent: false
 };
 
 function renderAnalyze() {
@@ -2282,7 +2282,10 @@ function renderAnalyze() {
     <div class="card-sub" style="margin-bottom:20px">Sube cualquier informe fiscal y la IA extrae automáticamente tus datos</div>
 
     <div class="alert alert-gold">
-      🔒 <strong>Privacidad:</strong> Tu documento se envía a la API de <strong>Anthropic (Claude)</strong> para su análisis. <strong>No se almacena en ningún servidor propio.</strong> Anthropic puede conservar datos según su política de privacidad en <a href="https://www.anthropic.com/privacy" target="_blank" rel="noopener" style="color:var(--gold2)">anthropic.com/privacy</a>. Se envía únicamente el contenido del archivo (máx. 80.000 caracteres). Puedes anonimizar nombres y DNI antes de subir.
+      🔒 <strong>Privacidad:</strong> Tu documento se envía a la API de <strong>Anthropic (Claude)</strong> para su análisis. <strong>No se almacena en nuestros servidores.</strong> Anthropic puede conservar datos según su política de privacidad en <a href="https://www.anthropic.com/privacy" target="_blank" rel="noopener" style="color:var(--gold2)">anthropic.com/privacy</a>. Se envía únicamente el contenido del archivo (máx. 80.000 caracteres).
+    </div>
+    <div class="alert" style="background:var(--red-dim);border-color:var(--red);color:var(--red)">
+      ⚠️ <strong>Alternativa sin IA:</strong> Puedes introducir operaciones manualmente en la pestaña "Operaciones" (100% local, ningún dato sale de tu navegador). La IA es solo para extraer datos de documentos .
     </div>
 
     <!-- FORMATOS SOPORTADOS -->
@@ -2296,8 +2299,42 @@ function renderAnalyze() {
       ].map(f=>`<span style="background:var(--sur2);border:1px solid var(--bor);border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;color:${f.c}">${f.icon} ${f.ext}</span>`).join("")}
     </div>
 
+    <!-- CONSENT MODAL -->
+    ${st.awaitingConsent ? `
+    <div style="background:var(--sur2);border:2px solid var(--gold);border-radius:12px;padding:24px">
+      <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:16px">
+        <div style="font-size:24px">⚠️</div>
+        <div>
+          <div style="font-weight:700;font-size:15px;margin-bottom:8px">Confirmación importante</div>
+          <div style="font-size:13px;color:var(--dim);line-height:1.6">
+            <div style="margin-bottom:8px">Has seleccionado: <strong>${st.fileName}</strong></div>
+            <div style="margin-bottom:12px;background:var(--red-dim);border-left:3px solid var(--red);padding:10px;border-radius:4px;color:var(--red)">
+              <strong>Este archivo se enviará a Anthropic (Claude)</strong> para análisis. No almacenamos los datos nosotros, pero Anthropic puede procesarlos según su política de privacidad.
+            </div>
+            <div style="background:var(--sur3);padding:10px;border-radius:4px;margin-bottom:12px">
+              <div style="color:var(--green);margin-bottom:6px">✓ <strong>Lo que sucede:</strong></div>
+              <div style="font-size:12px;line-height:1.5;color:var(--text-dim)">
+                1. Tu documento se envía al servidor de Anthropic<br>
+                2. La IA extrae operaciones y datos fiscales<br>
+                3. Los datos extraídos se importan localmente a Angel Tax<br>
+                4. El documento original se descarta
+              </div>
+            </div>
+            <div style="background:var(--sur3);padding:10px;border-radius:4px">
+              <div style="color:var(--blue);margin-bottom:6px">📌 <strong>¿No confías en la IA?</strong></div>
+              <div style="font-size:12px;color:var(--text-dim)">Usa la pestaña <strong>"Operaciones"</strong> para introducir datos manualmente. <strong>100% local, ningún envío a internet.</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn-primary" onclick="confirmAnalyzeWithConsent()" style="flex:1">✅ Entiendo y acepto</button>
+        <button class="btn-sec" onclick="cancelAnalyzeConsent()" style="flex:1">← Cancelar</button>
+      </div>
+    </div>` : ""}
+
     <!-- UPLOAD ZONE -->
-    ${!st.file && !st.loading && !st.result ? `
+    ${!st.file && !st.loading && !st.result && !st.awaitingConsent ? `
     <label id="analyzeDropzone" style="display:block;background:var(--sur2);border:2px dashed var(--bor2);border-radius:14px;padding:40px;text-align:center;cursor:pointer;transition:all .2s" ondragover="event.preventDefault();this.style.borderColor='var(--gold)'" ondragleave="this.style.borderColor='var(--bor2)'" ondrop="handleAnalyzeDrop(event)">
       <input type="file" id="analyzeFile" accept=".pdf,.csv,.xlsx,.xls,.png,.jpg,.jpeg" style="display:none" onchange="handleAnalyzeFile(this)"/>
       <div style="font-size:48px;margin-bottom:12px">📂</div>
@@ -2308,6 +2345,22 @@ function renderAnalyze() {
 
     <!-- LOADING -->
     ${st.loading ? `
+    <div style="background:linear-gradient(135deg, #e05252, #ff6b6b);border:2px solid #c0392b;border-radius:12px;padding:20px;margin-bottom:20px;color:white">
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="font-size:32px;line-height:1;margin-top:2px">🚨</div>
+        <div>
+          <div style="font-weight:700;font-size:16px;margin-bottom:8px">ATENCIÓN: Análisis con IA activado</div>
+          <div style="font-size:14px;line-height:1.5;margin-bottom:12px">
+            Tu documento se está <strong>enviando en este momento a los servidores de Anthropic (Claude)</strong> para análisis. 
+            <strong>No almacenamos</strong> los datos nosotros, pero Anthropic puede procesarlos según su <a href="https://www.anthropic.com/privacy" target="_blank" rel="noopener" style="color:#ffd700;text-decoration:underline">política de privacidad</a>.
+          </div>
+          <div style="font-size:13px;background:rgba(0,0,0,0.3);border-left:4px solid #ffeb3b;padding:10px;border-radius:4px">
+            <div style="margin-bottom:6px"><strong>✓ Lo que se envía:</strong> Solo el contenido del archivo (máx. 80KB de texto extraído)</div>
+            <div><strong>✓ Alternativa:</strong> Usa "Operaciones" para introducir datos manualmente (100% local, ningún envío a internet)</div>
+          </div>
+        </div>
+      </div>
+    </div>
     <div style="text-align:center;padding:48px 20px">
       <div style="font-size:48px;margin-bottom:16px;animation:spin 1s linear infinite;display:inline-block">⚙️</div>
       <div style="font-weight:700;font-size:16px;color:var(--gold2);margin-bottom:8px">Analizando documento...</div>
@@ -2413,18 +2466,43 @@ function renderAnalyzeResult() {
 function handleAnalyzeDrop(e) {
   e.preventDefault();
   const file = e.dataTransfer.files[0];
-  if (file) processAnalyzeFile(file);
+  if (file) {
+    analyzeState.file = file;
+    analyzeState.fileName = file.name;
+    analyzeState.fileType = file.type || "";
+    analyzeState.awaitingConsent = true;
+    render();
+  }
 }
 
 function handleAnalyzeFile(input) {
   const file = input.files[0];
-  if (file) processAnalyzeFile(file);
+  if (file) {
+    analyzeState.file = file;
+    analyzeState.fileName = file.name;
+    analyzeState.fileType = file.type || "";
+    analyzeState.awaitingConsent = true;
+    render();
+  }
 }
 
-async function processAnalyzeFile(file) {
-  analyzeState.file = file;
-  analyzeState.fileName = file.name;
-  analyzeState.fileType = file.type || "";
+function confirmAnalyzeWithConsent() {
+  if (!analyzeState.file) return;
+  analyzeState.awaitingConsent = false;
+  doAnalyzeFile(analyzeState.file);
+}
+
+function cancelAnalyzeConsent() {
+  analyzeState.file = null;
+  analyzeState.fileName = "";
+  analyzeState.fileType = "";
+  analyzeState.awaitingConsent = false;
+  analyzeState.loading = false;
+  analyzeState.error = null;
+  render();
+}
+
+async function doAnalyzeFile(file) {
   analyzeState.loading = true;
   analyzeState.error = null;
   analyzeState.result = null;
