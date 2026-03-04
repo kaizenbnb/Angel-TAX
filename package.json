@@ -16,7 +16,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
-    "vite": "^5.4.2"
+    "vite": "^7.3.1"
   },
   "keywords": ["criptomonedas", "fiscalidad", "españa", "irpf", "hacienda", "bitcoin", "crypto", "tax", "open-source"],
   "author": "Angel Tax Contributors",
