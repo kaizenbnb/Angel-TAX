@@ -1126,11 +1126,16 @@ function renderReport(sm) {
         <div class="card-title">📄 Informe Fiscal ${state.year}</div>
         <div class="card-sub">Resumen para completar tu declaración de la renta</div>
       </div>
-      <button class="btn-secondary" onclick="downloadReport()" style="border-color:var(--border2)">⬇️ .txt</button>
-      <button class="btn-primary" onclick="generatePDFReport()">📄 Descargar PDF</button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <select id="reportFormat" class="btn-secondary" style="padding:4px 8px;">
+          <option value="txt">.txt</option>
+          <option value="pdf">PDF</option>
+        </select>
+        <button class="btn-primary" onclick="downloadSelectedReport()">⬇️ Descargar</button>
+      </div>
       <button class="btn-sec" style="color:var(--red);border-color:var(--red)" onclick="clearSavedState()">🗑 Borrar todo</button>
       <button class="btn-sec" style="color:var(--blue);border-color:var(--blue)" onclick="loadDemoData()">🎭 Cargar demo</button>
-      <button class="btn-sec" style="color:var(--dim)" onclick="selfCheck()">🧪 Self-Check</button>
+      <button class="btn-sec" style="color:var(--dim)" title="Comprueba cálculos internos (para desarrolladores)" onclick="selfCheck()">🧪 Prueba técnica</button>
     </div>
 
     <div class="card" style="border-color:var(--bor2)">
@@ -2220,7 +2225,7 @@ function selfCheck() {
       <div style="background:var(--sur);border:1px solid var(--bor2);border-radius:16px;padding:28px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px #000a">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
           <div>
-            <div style="font-weight:700;font-size:16px">🧪 Self-Check</div>
+            <div style="font-weight:700;font-size:16px">🧪 Prueba técnica</div>
             <div style="font-size:11px;color:var(--dim)">v${APP_VERSION} · ${RULESET_VERSION} · ${BUILD_DATE}</div>
           </div>
           <button onclick="document.getElementById('selfcheck-modal').remove()" style="background:none;border:none;color:var(--dim);font-size:20px;cursor:pointer">✕</button>
@@ -2627,6 +2632,13 @@ function confirmAnalyzeImport() {
 function resetAnalyze() {
   analyzeState = { file:null, fileName:"", fileType:"", loading:false, result:null, error:null, previewOps:null, previewSummary:null };
   render();
+}
+
+// convenience wrapper triggered by the format dropdown in "Mi informe" tab
+function downloadSelectedReport() {
+  const fmt = document.getElementById("reportFormat").value;
+  if (fmt === "pdf") generatePDFReport();
+  else downloadReport();
 }
 
 // ─── PDF REPORT GENERATOR ────────────────────────────────
