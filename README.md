@@ -122,6 +122,24 @@ Angel Tax importa directamente los extractos de:
 - **Coinbase** — Standard CSV
 - **Bit2Me** — Formato nativo
 
+### Prueba con ejemplos
+
+**Sin datos reales en mano?** Descarga estos CSVs de ejemplo (ficticios y anonimizados):
+
+📁 **[`/examples/`](examples/)**
+- `binance-simple.csv` — 5 compraventas básicas
+- `binance-defi.csv` — Staking, airdrops, permutas
+- `binance-losses.csv` — Pérdidas y compensación
+
+**Cómo usarlos:**
+1. Abre la app → pestaña "Importar"
+2. Selecciona tu exchange (Binance)
+3. Descarga uno de los ejemplos arriba ↑
+4. Sube el CSV a Angel Tax
+5. Revisa el cálculo en "Mi Informe"
+
+> Ideal para aprender la interfaz, validar lógica de cálculo y probar casos fiscales reales **sin exponer tus datos**.
+
 ---
 
 ## 🤖 Análisis con IA
