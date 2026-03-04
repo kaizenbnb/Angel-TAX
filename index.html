@@ -819,11 +819,11 @@ function renderAdd() {
     <div class="form-grid">
       <div class="form-group">
         <label class="form-label">Criptomoneda / Activo</label>
-        <input class="form-input" id="f-asset" placeholder="BTC, ETH, SOL..." value="${formData.asset||""}" onchange="saveFormData();calcResult=null;fetchCoinPrice();render()"/>
+        <input class="form-input" id="f-asset" placeholder="BTC, ETH, SOL..." value="${formData.asset||""}" onchange="saveFormData();calcResult=null;render();setTimeout(fetchCoinPrice,0)"/>
       </div>
       <div class="form-group">
         <label class="form-label">Fecha de operación</label>
-        <input type="date" class="form-input" id="f-date" value="${formData.date||""}" onchange="saveFormData();calcResult=null;fetchCoinPrice();render()"/>
+        <input type="date" class="form-input" id="f-date" value="${formData.date||""}" onchange="saveFormData();calcResult=null;render();setTimeout(fetchCoinPrice,0)"/>
       <div id="price-ref" style="margin-top:6px;min-height:20px;font-size:11px;color:var(--dim)"></div>
       </div>
     </div>
