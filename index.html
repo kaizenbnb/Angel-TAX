@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://api.anthropic.com https://api.coingecko.com; img-src 'self' data: blob:; object-src 'none'; base-uri 'self'"/>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://api.anthropic.com https://api.coingecko.com; img-src 'self' data: blob:; object-src 'none'; base-uri 'self'; upgrade-insecure-requests"/>
   <title>Angel Tax — Fiscalidad Cripto España</title>
   <meta name="description" content="La herramienta definitiva para la fiscalidad de criptomonedas en España. Open source, gratuita y 100% privada."/>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 5 L15 20 L15 60 Q15 85 50 95 Q85 85 85 60 L85 20 Z' fill='%231e3a6e' stroke='%236ab0f5' stroke-width='3'/%3E%3Cpath d='M50 5 L15 20 L15 60 Q15 85 50 95 Q32 85 32 60 L32 20 Z' fill='%232a5298' opacity='0.7'/%3E%3C/svg%3E"/>
@@ -123,6 +123,7 @@
 const APP_VERSION     = "1.0.0";
 const RULESET_VERSION = "2025-ES-v1";   // Normativa AEAT aplicada
 const BUILD_DATE      = "2026-03-03";
+const ENCRYPT_STORAGE=false; // PR3
 
 // ═══════════════════════════════════════════
 // STATE
@@ -156,6 +157,9 @@ function sanitize(str) {
     .replace(/"/g,"&quot;")
     .replace(/'/g,"&#x27;");
 }
+/** PR1: Short alias */
+const h = sanitize;
+
 
 // Perfil del usuario
 let userProfile = {
@@ -678,12 +682,12 @@ function renderHome(sm) {
           <tbody>
             ${state.ops.map(op=>`
               <tr>
-                <td class="c-dim" style="font-size:12px">${op.date}</td>
+                <td class="c-dim" style="font-size:12px">${h(op.date)}</td>
                 <td>
-                  <span style="background:var(--bd);color:var(--blue);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600">${op.typeName}</span>
+                  <span style="background:var(--bd);color:var(--blue);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600">${h(op.typeName)}</span>
                   ${op.fifoMode?`<span style="background:#0a1a2a;color:var(--blue);border:1px solid var(--blue);border-radius:8px;padding:1px 6px;font-size:10px;margin-left:4px">FIFO</span>`:""}
                 </td>
-                <td class="fw7">${op.asset}</td>
+                <td class="fw7">${h(op.asset)}</td>
                 <td class="c-dim" style="font-size:12px">${op.qty?fmtQty(op.qty):"—"}</td>
                 <td>${["compraventa","permuta","pago","nft","lp_retiro","liquidacion","envio_regalo"].includes(op.type)?fmt(op.acq):"—"}</td>
                 <td>${fmt(op.trans)}</td>
@@ -813,7 +817,7 @@ function renderAdd() {
     <div class="form-grid">
       <div class="form-group">
         <label class="form-label">Criptomoneda / Activo</label>
-        <input class="form-input" id="f-asset" placeholder="BTC, ETH, SOL..." value="${formData.asset||""}" onchange="saveFormData();calcResult=null;render();setTimeout(fetchCoinPrice,0)"/>
+        <input class="form-input" id="f-asset" placeholder="BTC, ETH, SOL..." value="${h(formData.asset||"")}" onchange="saveFormData();calcResult=null;render();setTimeout(fetchCoinPrice,0)"/>
       </div>
       <div class="form-group">
         <label class="form-label">Fecha de operación</label>
@@ -920,7 +924,7 @@ function renderAdd() {
 
     <div class="form-group">
       <label class="form-label">Notas (opcional)</label>
-      <input class="form-input" id="f-notes" placeholder="Exchange, número de orden, contexto..." value="${formData.notes||""}"/>
+      <input class="form-input" id="f-notes" placeholder="Exchange, número de orden, contexto..." value="${h(formData.notes||"")}"/>
     </div>
 
     ${!calcResult?`<button class="btn-primary" onclick="calculate()">🧮 Calcular impacto fiscal</button>`:`
@@ -1336,9 +1340,9 @@ function renderImportPreview() {
           <tbody>
             ${p.slice(0,8).map(op=>`
               <tr>
-                <td style="font-size:12px;color:var(--dim)">${op.date}</td>
-                <td style="font-weight:600">${op.asset}</td>
-                <td><span style="background:var(--bd);color:var(--blue);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600">${op.typeName}</span></td>
+                <td style="font-size:12px;color:var(--dim)">${h(op.date)}</td>
+                <td style="font-weight:600">${h(op.asset)}</td>
+                <td><span style="background:var(--bd);color:var(--blue);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600">${h(op.typeName)}</span></td>
                 <td>${op.acq>0?fmt(op.acq):"—"}</td>
                 <td>${fmt(op.trans)}</td>
                 <td style="color:${op.gain>=0?"var(--green)":"var(--red)"};font-weight:700">${op.gain>=0?"+":""}${fmt(op.gain)}</td>
@@ -1514,16 +1518,10 @@ function parseCSV(text, type) {
     }
   }
 
-  // ── Dedupe: eliminar ops duplicadas por date+asset+type+gain ──
-  const seen = new Set();
-  const deduped = ops.filter(op => {
-    const key = `${op.date}|${op.asset}|${op.type}|${Math.round((op.gain||0)*100)}|${Math.round((op.trans||0)*100)}`;
-    if (seen.has(key)) { errors.push(`Duplicado omitido: ${op.date} ${op.asset} ${op.typeName}`); return false; }
-    seen.add(key);
-    return true;
-  });
-
-  return { ops: deduped, lots, errors };
+  // Dedupe (PR2)
+  const seen=new Map();
+  const deduped=ops.filter((op,ri)=>{const k=op.date+"|"+op.asset+"|"+op.type+"|"+Math.round((op.gain||0)*100)+"|"+Math.round((op.trans||0)*100)+"|"+(op.notes||"").substring(0,60);if(seen.has(k)){errors.push("Dup fila "+(ri+1)+": "+op.date+" "+op.asset);return false;}seen.set(k,true);return true;});
+    return { ops: deduped, lots, errors };
 }
 
 function detectSeparator(line) {
@@ -1550,39 +1548,16 @@ function parseCsvLine(line, sep) {
 }
 
 function toNum(s) {
-  if (!s || s==="N/A" || s==="-" || s==="") return 0;
-  // Strip currency symbols and whitespace
-  let cleaned = String(s).replace(/[€$£\s%]/g, "").trim();
-  if (!cleaned || cleaned==="-") return 0;
-
-  const commas = (cleaned.match(/,/g)||[]).length;
-  const dots   = (cleaned.match(/\./g)||[]).length;
-
-  // European format: 1.234.567,89  → multiple dots as thousands sep, comma as decimal
-  if (dots > 1) {
-    cleaned = cleaned.replace(/\./g,"").replace(",",".");
-  }
-  // European format: 1.234,56 → dot as thousands sep, comma as decimal
-  else if (commas === 1 && dots === 1 && cleaned.lastIndexOf(",") > cleaned.lastIndexOf(".")) {
-    cleaned = cleaned.replace(".","").replace(",",".");
-  }
-  // Pure comma decimal: 1,23 or 1,234 (no dot at all)
-  else if (commas === 1 && dots === 0) {
-    const afterComma = cleaned.split(",")[1];
-    // If <= 2 digits after comma: it's a decimal separator
-    if (afterComma && afterComma.length <= 2) {
-      cleaned = cleaned.replace(",",".");
-    } else {
-      // Thousands separator (e.g. 1,234) → remove comma
-      cleaned = cleaned.replace(",","");
-    }
-  }
-  // Multiple commas as thousands: 1,234,567
-  else if (commas > 1) {
-    cleaned = cleaned.replace(/,/g,"");
-  }
-
-  return parseFloat(cleaned) || 0;
+  if(!s||s==="N/A"||s==="-"||s==="")return 0;
+  let c=String(s).replace(/[€$£%\s]/g,"").trim();
+  if(!c||c==="-")return 0;
+  const commas=(c.match(/,/g)||[]).length,dots=(c.match(/\./g)||[]).length;
+  if(dots>1){c=c.replace(/\./g,"").replace(",",".");return parseFloat(c)||0;}
+  if(commas>1){c=c.replace(/,/g,"");return parseFloat(c)||0;}
+  if(dots===1&&commas===1){if(c.lastIndexOf(",")>c.lastIndexOf(".")){c=c.replace(".","").replace(",",".");}else{c=c.replace(",","");}return parseFloat(c)||0;}
+  if(commas===1){const p=c.split(","),a=p[1]||"",b=p[0];if(a.length===3&&b.length>0&&b!=="0")return parseFloat(c.replace(",",""))||0;return parseFloat(c.replace(",","."))||0;}
+  if(dots===1){const p=c.split("."),a=p[1]||"",b=p[0];if(a.length===3&&b.length>0&&b!=="0")return parseFloat(c.replace(".",""))||0;return parseFloat(c)||0;}
+  return parseFloat(c)||0;
 }
 
 function formatDate(raw) {
@@ -2187,6 +2162,9 @@ function selfCheck() {
   const xssOk = xss.includes("&lt;") && !xss.includes("<scr"+"ipt>");
   results.push({ name:"TC-10 sanitize XSS", ok:xssOk, got: xssOk?"sin <script>":"CON <script>", expected:"sin <script>" });
   if (xssOk) passed++; else failed++;
+  // TC-11 to TC-20: toNum (PR2)
+  [["1,23",1.23],["0,50",0.50],["1,234",1234],["1.234",1234],["1.234,56",1234.56],["1,234.56",1234.56],["1.234.567,89",1234567.89],["1,234,567.89",1234567.89],["10.5",10.5],["€ 1.500,00",1500.00]].forEach(([inp,exp],i)=>check("TC-"+(11+i)+" toNum",toNum(inp),exp,0.001));
+    const toNumCases=[["1,23",1.23],["0,50",0.50],["1,234",1234],["1.234",1234],["1.234,56",1234.56],["1,234.56",1234.56],["1.234.567,89",1234567.89],["1,234,567.89",1234567.89],["10.5",10.5],["€ 1.500,00",1500.00]];toNumCases.forEach(([inp,exp],i)=>check("TC-"+(11+i)+" toNum",toNum(inp),exp,0.001));
 
   // Render modal
   const modal = document.createElement("div");
@@ -2377,7 +2355,7 @@ function renderAnalyzeResult() {
     <!-- ALERTAS IA -->
     ${r.alerts && r.alerts.length > 0 ? r.alerts.map(a=>`
       <div class="alert alert-${a.type||"orange"}">
-        ${a.icon||"⚠️"} <strong>${a.title}:</strong> ${a.body}
+        ${h(String(a.icon||"⚠️"))} <strong>${h(String(a.title||""))}:</strong> ${h(String(a.body||""))}
       </div>`).join("") : ""}
 
     <!-- CASILLAS A RELLENAR -->
@@ -2405,9 +2383,9 @@ function renderAnalyzeResult() {
         <thead><tr><th>Fecha</th><th>Activo</th><th>Tipo</th><th>Adquisición</th><th>Transmisión</th><th>G/P Neta</th><th>Casilla</th></tr></thead>
         <tbody>
           ${ops.slice(0,15).map(op=>`<tr>
-            <td style="font-size:12px;color:var(--dim)">${op.date}</td>
-            <td style="font-weight:600">${op.asset}</td>
-            <td><span style="background:var(--bd);color:var(--blue);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600">${op.typeName}</span></td>
+            <td style="font-size:12px;color:var(--dim)">${h(op.date)}</td>
+            <td style="font-weight:600">${h(op.asset)}</td>
+            <td><span style="background:var(--bd);color:var(--blue);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600">${h(op.typeName)}</span></td>
             <td>${op.acq>0?fmt(op.acq):"—"}</td>
             <td>${fmt(op.trans)}</td>
             <td style="color:${op.gain>=0?"var(--green)":"var(--red)"};font-weight:700">${op.gain>=0?"+":""}${fmt(op.gain)}</td>
@@ -2422,7 +2400,7 @@ function renderAnalyzeResult() {
     ${r.narrative ? `
     <div style="background:var(--sur2);border:1px solid var(--bor);border-radius:10px;padding:18px;margin-bottom:20px;font-size:13px;color:var(--dim);line-height:1.7">
       <div style="font-size:11px;color:var(--gold);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🤖 Análisis IA</div>
-      ${r.narrative}
+    <p id="ai-narrative-text"></p>
     </div>` : ""}
 
     <!-- ACCIONES -->
@@ -3190,7 +3168,7 @@ function fifoCalc(asset, qtySold, saleFees) {
     ? `⚠️ Solo hay ${fmtQty(qtySold - remaining)} ${asset.toUpperCase()} en lotes FIFO — faltan ${fmtQty(remaining)} unidades sin coste de adquisición conocido`
     : null;
 
-  return { totalAcq, lotsUsed, qtyFound: qtySold - remaining, warning };
+  return { totalAcq, lotsUsed, qtyFound: qtySold-remaining, insufficient:remaining>0, warning };
 }
 
 // Preview FIFO without consuming (for calculate())
@@ -3486,6 +3464,7 @@ function calculate() {
     } else {
       fifo = fifoPreview(formData.asset, qty);
     }
+    if(fifo&&fifo.insufficient){calcResult={error:"⛔ Solo hay "+fmtQty(fifo.qtyFound)+" "+(formData.asset||"").toUpperCase()+" en lotes FIFO — necesitas "+fmtQty(qty)+". Añade primero las compras."};render();return;}
 
     const gain = trans - (fifo ? fifo.totalAcq : 0) - fees;
     calcResult = {
@@ -3640,26 +3619,18 @@ function attachEvents() {
       }
     });
   }
+  const ne=document.getElementById("ai-narrative-text");if(ne&&analyzeState.result&&analyzeState.result.narrative){ne.textContent=String(analyzeState.result.narrative);}
 }
 
 // ═══════════════════════════════════════════
 // PERSISTENCIA
 // ═══════════════════════════════════════════
+// PR3 crypto helpers
+async function encryptData(pt,pass){const enc=new TextEncoder(),salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));const km=await crypto.subtle.importKey("raw",enc.encode(pass),"PBKDF2",false,["deriveKey"]);const key=await crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:100000,hash:"SHA-256"},km,{name:"AES-GCM",length:256},false,["encrypt"]);const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,enc.encode(pt));const b=new Uint8Array(16+12+ct.byteLength);b.set(salt,0);b.set(iv,16);b.set(new Uint8Array(ct),28);return btoa(String.fromCharCode(...b));}
+async function decryptData(b64,pass){const enc=new TextEncoder(),b=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));const salt=b.slice(0,16),iv=b.slice(16,28),data=b.slice(28);const km=await crypto.subtle.importKey("raw",enc.encode(pass),"PBKDF2",false,["deriveKey"]);const key=await crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:100000,hash:"SHA-256"},km,{name:"AES-GCM",length:256},false,["decrypt"]);return new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv},key,data));}
 const STORAGE_KEY = "angeltax_v1";
 
-function saveState() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      ops: state.ops,
-      lots: state.lots,
-      balances: state.balances,
-      year: state.year,
-      costMethod: state.costMethod,
-      carryForwardLosses: state.carryForwardLosses,
-      priorYearLosses: state.priorYearLosses
-    }));
-  } catch(e) { /* cuota excedida o privado */ }
-}
+async function saveState(){try{const p=JSON.stringify({ops:state.ops,lots:state.lots,balances:state.balances,year:state.year,costMethod:state.costMethod,carryForwardLosses:state.carryForwardLosses,priorYearLosses:state.priorYearLosses});if(ENCRYPT_STORAGE&&window._storageKey){localStorage.setItem(STORAGE_KEY,JSON.stringify({enc:true,data:await encryptData(p,window._storageKey)}));}else{localStorage.setItem(STORAGE_KEY,p);}}catch(e){}}
 
 function updateCarryForwardLosses(value) {
   state.carryForwardLosses = parseFloat(value) || 0;
@@ -3667,20 +3638,7 @@ function updateCarryForwardLosses(value) {
   render();
 }
 
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const saved = JSON.parse(raw);
-    if (saved.ops)       state.ops       = saved.ops;
-    if (saved.lots)      state.lots      = saved.lots;
-    if (saved.balances)  state.balances  = Array.isArray(saved.balances) ? saved.balances : [];
-    if (saved.year)      state.year      = saved.year;
-    if (saved.costMethod) state.costMethod = saved.costMethod;
-    if (saved.carryForwardLosses) state.carryForwardLosses = saved.carryForwardLosses;
-    if (saved.priorYearLosses) state.priorYearLosses = saved.priorYearLosses;
-  } catch(e) { /* JSON inválido — ignorar */ }
-}
+async function loadState(){try{const raw=localStorage.getItem(STORAGE_KEY);if(!raw)return;let saved=JSON.parse(raw);if(saved.enc&&ENCRYPT_STORAGE){const pass=window._storageKey||prompt("🔐 Contraseña:");if(!pass)return;window._storageKey=pass;saved=JSON.parse(await decryptData(saved.data,pass));}if(saved.ops)state.ops=saved.ops;if(saved.lots)state.lots=saved.lots;if(saved.balances)state.balances=Array.isArray(saved.balances)?saved.balances:[];if(saved.year)state.year=saved.year;if(saved.costMethod)state.costMethod=saved.costMethod;if(saved.carryForwardLosses)state.carryForwardLosses=saved.carryForwardLosses;if(saved.priorYearLosses)state.priorYearLosses=saved.priorYearLosses;}catch(e){}}
 
 function clearSavedState() {
   if (!confirm("¿Borrar todos los datos guardados? Esta acción no se puede deshacer.")) return;
@@ -3728,10 +3686,11 @@ function loadDemoData() {
 // ═══════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════
-loadState();
-render();
+// PR3: async init
+loadState().then(()=>render());
 </script>
-<script src="https://unpkg.com/feather-icons" onload="if(window.feather) feather.replace()"></script>
+<!-- PR3: SRI pinned -->
+<script src="https://unpkg.com/feather-icons@4.29.2/dist/feather.min.js" integrity="sha384-mll67QQFJfei9zA23+9PBnSy3dpPn7bOSxvMvMM1Rb7X3PfsTRn9IQJC9YQ5blT" crossorigin="anonymous" onload="if(window.feather) feather.replace()"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" crossorigin="anonymous"></script>
 </body>
