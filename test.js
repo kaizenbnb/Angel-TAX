@@ -1,0 +1,15 @@
+const fs = require('fs');
+const vm = require('vm');
+const html = fs.readFileSync('c:/proyectos/Angel-TAX/index.html','utf-8');
+const js = html.split('<script>')[1].split('</script>')[0];
+const context = { console, state:{ops:[],lots:[],balances:[],year:'2024',costMethod:'fifo'}, BRACKETS:null, toNum: null, fmt:null, fmtQty:null, fifoCalc:null, calcTax:null, getSummary:null };
+vm.createContext(context);
+vm.runInContext(js, context);
+console.log('calcTax(6000)=', context.calcTax(6000));
+console.log('calcTax(50000)=', context.calcTax(50000));
+context.state.ops.push({casilla:'1800', gain:100});
+console.log('summary1', context.getSummary());
+context.state.ops.push({casilla:'1800', gain:-50});
+console.log('summary2', context.getSummary());
+context.state.lots=[{id:'t1',asset:'BTC',date:'2024-01-01',qty:1,qtyRemaining:1,pricePerUnit:30000,totalEur:30000,fees:0}];
+console.log('fifo', context.fifoCalc('BTC',0.5,0));
