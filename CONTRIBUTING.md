@@ -142,8 +142,7 @@ Si contribuyes con cambios en cálculos o normativa fiscal:
 
 ```
 Angel-TAX/
-├── index.html          # Aplicación completa (single-file)
-├── AngelTax.jsx        # Versión React original (referencia)
+├── index.html          # Aplicación completa (single-file vanilla JS)
 ├── SECURITY.md         # Política de seguridad
 ├── CONTRIBUTING.md     # Esta guía
 ├── README.md           # Documentación principal
