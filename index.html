@@ -120,7 +120,13 @@ const BUILD_DATE      = "2026-03-03";
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
-let state = { ops: [], lots: [], balances: [], year: String(new Date().getFullYear() - 1), costMethod: "fifo" };
+let state = { 
+  ops: [], lots: [], balances: [], 
+  year: String(new Date().getFullYear() - 1), 
+  costMethod: "fifo",
+  carryForwardLosses: 0,  // Pérdidas de años anteriores a compensar
+  priorYearLosses: {}     // {2023: -1200, 2022: -500, ...}
+};
 let currentTab = "home";
 let currentOpType = null;
 let formData = {};
@@ -1132,10 +1138,36 @@ function renderReport(sm) {
           <option value="pdf">PDF</option>
         </select>
         <button class="btn-primary" onclick="downloadSelectedReport()">⬇️ Descargar</button>
+        <button class="btn-secondary" onclick="exportToJSON()" title="Exporta en formato JSON para Hacienda">📋 JSON</button>
       </div>
       <button class="btn-sec" style="color:var(--red);border-color:var(--red)" onclick="clearSavedState()">🗑 Borrar todo</button>
       <button class="btn-sec" style="color:var(--blue);border-color:var(--blue)" onclick="loadDemoData()">🎭 Cargar demo</button>
       <button class="btn-sec" style="color:var(--dim)" title="Comprueba cálculos internos (para desarrolladores)" onclick="selfCheck()">🧪 Prueba técnica</button>
+    </div>
+
+    <!-- COMPENSACIÓN INTER-EJERCICIOS -->
+    <div class="card" style="border-color:var(--gold);background:linear-gradient(to right, var(--gold-glow), transparent)">
+      <div style="margin-bottom:12px"><span class="casilla">Regla 4 años</span></div>
+      <div style="font-weight:600;font-size:15px;margin-bottom:14px">Compensación de pérdidas de ejercicios anteriores</div>
+      <div style="font-size:13px;color:var(--dim);margin-bottom:16px">
+        Las pérdidas netas de transmisiones de ejercicios anteriores pueden compensar ganancias de los siguientes 4 años.
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>
+          <label style="display:block;font-size:12px;color:var(--dim);margin-bottom:4px;font-weight:600">Pérdidas pendientes (€)</label>
+          <input type="number" id="priorLossesInput" value="${state.carryForwardLosses}" onchange="updateCarryForwardLosses(this.value)" style="width:100%;padding:8px;background:var(--sur2);border:1px solid var(--bor);color:var(--text);border-radius:6px;font-size:14px" placeholder="0" />
+          <div style="font-size:11px;color:var(--mut);margin-top:4px">Introduce como negativo: -1200</div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--dim);margin-bottom:4px;font-weight:600">Compensables este año</div>
+          <div style="padding:8px;background:var(--sur2);border:1px solid var(--bor);border-radius:6px;font-weight:700;color:var(--gold2)">
+            ${fmt(Math.min(Math.abs(state.carryForwardLosses), Math.max(sm.net, 0)))} €
+          </div>
+        </div>
+      </div>
+      <div class="alert alert-blue" style="font-size:12px">
+        💡 <strong>Cómo funciona:</strong> Si tienes -1.000€ de 2023 y +500€ de ganancias este año, compensa -500€ (quedan -500€ para 2027).
+      </div>
     </div>
 
     <div class="card" style="border-color:var(--bor2)">
@@ -2719,6 +2751,90 @@ function downloadSelectedReport() {
   else downloadReport();
 }
 
+// ─── JSON EXPORT FOR RENTA WEB ─────────────────────────
+function exportToJSON() {
+  const sm = getSummary();
+  const m721Total = getM721Total();
+  
+  // Detectar si hay pérdida neta (arrastrable)
+  const baseImpositiva = sm.base;
+  const hayPerdidaNeta = sm.losses > sm.gains;
+  const perdidaNeta = hayPerdidaNeta ? Math.min(sm.losses - sm.gains, baseImpositiva) : 0;
+  
+  const json = {
+    ejercicio: state.year,
+    generado: new Date().toISOString().split('T')[0],
+    app: { nombre: "Angel Tax", version: APP_VERSION, ruleset: RULESET_VERSION },
+    resumen: {
+      ganancias_1800: sm.gains,
+      perdidas_1800: sm.losses,
+      resultado_neto_1800: sm.net,
+      rendimientos_0033: sm.staking,
+      ganancias_1626: sm.airdrops,
+      base_imponible: baseImpositiva,
+      impuesto_estimado: sm.tax,
+      perdida_arrastrable: perdidaNeta > 0 ? perdidaNeta : 0
+    },
+    casillas: {
+      "1800": { descripcion: "Ganancias/pérdidas patrimoniales", valor: sm.net, moneda: "EUR" },
+      "0033": { descripcion: "Rendimientos capital mobiliario (staking, lending, LP)", valor: sm.staking, moneda: "EUR" },
+      "1626": { descripcion: "Ganancias no derivadas (airdrops, hardforks)", valor: sm.airdrops, moneda: "EUR" },
+      "0347": { descripcion: "Minería", valor: sm.mineria || 0, moneda: "EUR" }
+    },
+    modelo_721: {
+      aplica: m721Total >= 50000,
+      saldo_total_eur: m721Total,
+      saldo_umbral_eur: 50000,
+      exchanges: state.balances
+        .filter(b => b.foreign)
+        .map(b => ({ exchange: b.label, saldo: b.eur, moneda_nativa: b.foreign }))
+    },
+    operaciones: state.ops.map(o => ({
+      id: o.id,
+      fecha: o.date,
+      tipo: o.type,
+      activo: o.asset,
+      cantidad: o.qty,
+      adquisicion_eur: o.acq,
+      transmision_eur: o.trans,
+      comisiones_eur: o.fees,
+      ganancia_perdida_eur: o.gain,
+      casilla_fiscal: o.casilla,
+      metodo_fifo: !!o.fifoMode
+    })),
+    lotes_fifo: state.lots.map(l => ({
+      id: l.id,
+      activo: l.asset,
+      fecha_adquisicion: l.date,
+      cantidad_comprada: l.qty,
+      cantidad_disponible: l.qtyRemaining,
+      precio_unitario_eur: l.pricePerUnit,
+      coste_total_eur: l.totalEur,
+      comisiones_eur: l.fees
+    })),
+    notas: [
+      `Informe generado por Angel Tax v${APP_VERSION}`,
+      `Normativa: Ley 35/2006 IRPF, DGT V1766-22, V1948-21, Decreto 193/2004`,
+      `Método coste: ${state.costMethod === "specific" ? "Identificación específica" : "FIFO"}`,
+      `⚠️ Esta información es orientativa. Requiere validación por asesor fiscal certificado.`
+    ]
+  };
+  
+  // Descargar JSON
+  const filename = `Angel-TAX_${state.year}_${new Date().toISOString().split('T')[0]}.json`;
+  const blob = new Blob([JSON.stringify(json, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  showBanner(`✅ JSON exportado: ${filename}`);
+}
+
 // ─── PDF REPORT GENERATOR ────────────────────────────────
 function generatePDFReport() {
   const { jsPDF } = window.jspdf;
@@ -3599,9 +3715,17 @@ function saveState() {
       lots: state.lots,
       balances: state.balances,
       year: state.year,
-      costMethod: state.costMethod
+      costMethod: state.costMethod,
+      carryForwardLosses: state.carryForwardLosses,
+      priorYearLosses: state.priorYearLosses
     }));
   } catch(e) { /* cuota excedida o privado */ }
+}
+
+function updateCarryForwardLosses(value) {
+  state.carryForwardLosses = parseFloat(value) || 0;
+  saveState();
+  render();
 }
 
 function loadState() {
@@ -3614,6 +3738,8 @@ function loadState() {
     if (saved.balances)  state.balances  = Array.isArray(saved.balances) ? saved.balances : [];
     if (saved.year)      state.year      = saved.year;
     if (saved.costMethod) state.costMethod = saved.costMethod;
+    if (saved.carryForwardLosses) state.carryForwardLosses = saved.carryForwardLosses;
+    if (saved.priorYearLosses) state.priorYearLosses = saved.priorYearLosses;
   } catch(e) { /* JSON inválido — ignorar */ }
 }
 

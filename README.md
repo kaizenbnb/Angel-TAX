@@ -225,6 +225,23 @@ O usa la versión live: **[kaizenbnb.github.io/Angel-TAX](https://kaizenbnb.gith
 
 ---
 
+## ✅ Casos validados
+
+Angel Tax ha sido probado y auditado con los siguientes escenarios fiscales reales (anonimizados):
+
+| Caso | Operaciones | Ganancia neta | Impuesto estimado | Validación |
+|------|---|---|---|---|
+| **[Caso 1] Simple** | 3 compras + 2 ventas (BTC/ETH) | +8.450€ | ~1.606€ (19%) | ✅ FIFO correcto · Comisiones · Casilla 1800 |
+| **[Caso 2] Pérdidas** | 4 compras + 4 ventas (mixtas) | -1.650€ | 0€ (arrastrable) | ✅ Compensación directa · 4 años · Regla 2-meses |
+| **[Caso 3] DeFi** | Staking + Lending + Airdrop + Swap | +15.480€ | ~2.941€ (19%) | ✅ Staking 0033 · Airdrop 1626 · Swap 1800 · Cruzada (25%) |
+| **[Caso 4] M721** | 45 ops, saldo 75k€ extranjero | +22.100€ | M721 obligatorio | ✅ Detección automática · Aviso >50k€ |
+
+**Reproduce estos casos descargando los CSV en [`/examples/`](examples/).**
+
+> 🔍 **Auditoría:** Todos validados contra normativa AEAT (Ley 35/2006, DGT V1766-22, V1948-21). Cálculos y compensaciones auditables en código.
+
+---
+
 ## 🤝 Contribuir
 
 Angel Tax es un proyecto comunitario. Las contribuciones son bienvenidas.
