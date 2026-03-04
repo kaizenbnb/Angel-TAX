@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    :root{
+    :root{h
       --bg:#070a14;--sur:#0e1220;--sur2:#1a2235;--sur3:#1e2540;
       --bor:#2e3a5a;--bor2:#2e3a5e;
       --gold:#c9a227;--gold2:#e8c04a;--gg:rgba(201,162,39,.18);
@@ -708,6 +708,67 @@ function renderHome(sm) {
     </div>`;
 }
 
+
+// ── COINGECKO HISTORICAL PRICE REFERENCE ────────────────────────────
+const COIN_IDS = {
+  BTC:'bitcoin', ETH:'ethereum', SOL:'solana', BNB:'binancecoin',
+  XRP:'ripple', ADA:'cardano', DOGE:'dogecoin', AVAX:'avalanche-2',
+  DOT:'polkadot', MATIC:'matic-network', LINK:'chainlink',
+  UNI:'uniswap', LTC:'litecoin', BCH:'bitcoin-cash', XLM:'stellar',
+  ATOM:'cosmos', FIL:'filecoin', TRX:'tron', ETC:'ethereum-classic',
+  NEAR:'near', ALGO:'algorand', VET:'vechain', SAND:'the-sandbox',
+  MANA:'decentraland', AXS:'axie-infinity', FTM:'fantom',
+  ONE:'harmony', HBAR:'hedera-hashgraph', EGLD:'elrond-erd-2',
+  THETA:'theta-token', XTZ:'tezos', EOS:'eos', AAVE:'aave',
+  COMP:'compound-governance-token', MKR:'maker', SNX:'havven',
+  YFI:'yearn-finance', SUSHI:'sushi', CRV:'curve-dao-token',
+  '1INCH':'1inch', GRT:'the-graph', CHZ:'chiliz', ENJ:'enjincoin',
+  BAT:'basic-attention-token', ZEC:'zcash', DASH:'dash',XMR:'monero',
+  OP:'optimism', ARB:'arbitrum', PEPE:'pepe', WIF:'dogwifcoin',
+  SHIB:'shiba-inu', FLOKI:'floki', BONK:'bonk', WLD:'worldcoin-wld',
+  SUI:'sui', APT:'aptos', INJ:'injective-protocol', SEI:'sei-network',
+  TIA:'celestia', PYTH:'pyth-network', JTO:'jito-governance-token',
+  RENDER:'render-token', FET:'fetch-ai', AGIX:'singularitynet',
+  OCEAN:'ocean-protocol', IMX:'immutable-x', LDO:'lido-dao',
+  RPL:'rocket-pool', RETH:'rocket-pool-eth', STETH:'staked-ether',
+  WBTC:'wrapped-bitcoin', USDT:'tether', USDC:'usd-coin', DAI:'dai',
+  BUSD:'binance-usd', TUSD:'true-usd', FRAX:'frax',
+};
+let _priceCache = {};
+
+async function fetchCoinPrice() {
+  const asset = (document.getElementById('f-asset')?.value||'').trim().toUpperCase();
+  const date  = document.getElementById('f-date')?.value; // yyyy-mm-dd
+  const box   = document.getElementById('price-ref');
+  if (!box) return;
+  if (!asset || !date) { box.innerHTML = ''; return; }
+  const coinId = COIN_IDS[asset];
+  if (!coinId) {
+    box.innerHTML = '💡 Precio ref: activo no reconocido (<a href="https://www.coingecko.com" target="_blank" style="color:var(--dim)">buscar en CoinGecko</a>)';
+    return;
+  }
+  const cacheKey = coinId + '_' + date;
+  if (_priceCache[cacheKey]) { box.innerHTML = _priceCache[cacheKey]; return; }
+  box.innerHTML = '⏳ Consultando precio histórico...';
+  try {
+    const [y,m,d] = date.split('-');
+    const geckoDate = d+'-'+m+'-'+y; // dd-mm-yyyy
+    const url = 'https://api.coingecko.com/api/v3/coins/'+coinId+'/history?date='+geckoDate+'&localization=false';
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    const data = await r.json();
+    const eur = data?.market_data?.current_price?.eur;
+    if (eur == null) throw new Error('sin datos EUR');
+    const fmt = new Intl.NumberFormat('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}).format(eur);
+    const html = '💡 Precio ref. CoinGecko ' + date + ': <strong style="color:var(--gold2)">' + fmt + ' €</strong> / ' + asset;
+    _priceCache[cacheKey] = html;
+    box.innerHTML = html;
+  } catch(e) {
+    box.innerHTML = '⚠️ No se pudo obtener el precio histórico';
+  }
+}
+// ────────────────────────────────────────────────────────────────────
+
 function renderAdd() {
   if (!currentOpType) {
     return `<div class="card">
@@ -758,11 +819,12 @@ function renderAdd() {
     <div class="form-grid">
       <div class="form-group">
         <label class="form-label">Criptomoneda / Activo</label>
-        <input class="form-input" id="f-asset" placeholder="BTC, ETH, SOL..." value="${formData.asset||""}" onchange="saveFormData();calcResult=null;render()"/>
+        <input class="form-input" id="f-asset" placeholder="BTC, ETH, SOL..." value="${formData.asset||""}" onchange="saveFormData();calcResult=null;fetchCoinPrice();render()"/>
       </div>
       <div class="form-group">
         <label class="form-label">Fecha de operación</label>
-        <input type="date" class="form-input" id="f-date" value="${formData.date||""}"/>
+        <input type="date" class="form-input" id="f-date" value="${formData.date||""}" onchange="saveFormData();calcResult=null;fetchCoinPrice();render()"/>
+      <div id="price-ref" style="margin-top:6px;min-height:20px;font-size:11px;color:var(--dim)"></div>
       </div>
     </div>
 
