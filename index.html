@@ -103,6 +103,10 @@
     .fw7{font-weight:700} .ff-serif{font-family:'Playfair Display',serif}
     select{background:var(--sur2);border:1px solid var(--bor);border-radius:8px;color:var(--text);padding:5px 10px;font-size:12px;font-family:'DM Sans',system-ui;outline:none}
     a{color:var(--blue)}
+    /* FOOTER */
+    #footer{background:var(--sur);border-top:1px solid var(--bor);padding:24px;margin-top:60px;text-align:center;font-size:12px;color:var(--dim);line-height:1.6}
+    #footer a{color:var(--blue);text-decoration:none}
+    #footer a:hover{text-decoration:underline}
     @media(max-width:640px){.form-grid,.form-grid3{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
   </style>
 </head>
@@ -327,10 +331,10 @@ function render() {
     ${currentTab==="report" ? renderReport(sm)  : ""}
     ${currentTab==="guide"  ? renderGuide()     : ""}
     ${renderPrivacyBar()}
-    <div style="text-align:center;padding:16px 0 8px;font-size:11px;color:var(--mut)">
-      Angel Tax v${APP_VERSION} · Ruleset ${RULESET_VERSION} · ${BUILD_DATE} ·
-      <a href="https://github.com/kaizenbnb/Angel-TAX" target="_blank" rel="noopener" style="color:var(--mut);text-decoration:none">GitHub</a> ·
-      <span style="cursor:pointer;color:var(--mut)" onclick="selfCheck()">🧪 self-check</span>
+    <div id="footer">
+      <div style="margin-bottom:12px; font-weight:700">Angel Tax v${APP_VERSION} • Marzo 2026</div>
+      <div style="margin-bottom:8px">No es asesoramiento fiscal. Consulta siempre con un profesional antes de presentar tu declaración.</div>
+      <div>Código abierto: <a href="https://github.com/kaizenbnb/Angel-TAX" target="_blank" rel="noopener">GitHub • kaizenbnb/Angel-TAX</a></div>
     </div>
   `;
   attachEvents();

@@ -50,14 +50,51 @@ Estos archivos CSV ficticios te permiten probar Angel Tax sin datos personales. 
 
 ---
 
+### `coinbase-mixed.csv`
+**Caso Coinbase:** operaciones desde plataforma alternativa con staking y DeFi.
+
+Útil para:
+- Probar importación desde Coinbase (formato alternativo)
+- Validar staking rewards (casilla 0033)
+- Testear conversiones y swaps
+- Comprobar airdrop con ganancias variadas
+
+**Resultado esperado:**
+- Mixed operations con balance positivo
+- Estimado: +800€ neto de ganancias
+- Impuesto: ~150€ (depende estructura completa)
+
+---
+
+### `defi-nft-advanced.csv`
+**Caso complejo:** NFTs, LP pools, liquidaciones y operaciones DeFi avanzadas.
+
+Útil para:
+- Validar NFT trading (casilla 1800)
+- Probar LP pool entries/exits
+- Testear liquidaciones forzadas de colateral
+- Comprobar combinación de múltiples bases tributarias
+
+**Resultado esperado:**
+- Ganancias NFT: +900€
+- LP fees (0033): +450€
+- Recompensas staking: +800€
+- Pérdida NFT: -300€
+- Liquidación (1800): -600€
+- Base neta compleja con múltiples casillas
+
+---
+
 ## 🚀 Cómo usar
 
 1. Abre Angel Tax: https://kaizenbnb.github.io/Angel-TAX
 2. Ve a **"Importar CSV"**
-3. Selecciona el exchange: **Binance**
+3. Selecciona el exchange o formato (Binance, Coinbase, Bit2Me)
 4. Descarga uno de estos archivos (botón derecho → Guardar como)
 5. Sube el CSV a Angel Tax
 6. Revisa el cálculo en **"Mi Informe"**
+
+**Sugerencia:** Empieza con `binance-simple.csv` y ve progresando a casos más complejos.
 
 ---
 

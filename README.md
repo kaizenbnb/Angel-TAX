@@ -148,6 +148,15 @@ Sube cualquier PDF, Excel o extracto de exchange y el analizador de IA (Claude A
 
 > **Privacidad:** los documentos se procesan de forma puntual. Angel Tax **no almacena** ningún dato en servidores externos.
 
+### ⚠️ Uso de IA (Claude API)
+
+- Al activar el análisis automático, tus documentos/texto se envían **temporalmente** a Anthropic (Claude).
+- **No los almacenamos nosotros**, pero Anthropic los procesa para extraer operaciones.
+- **Alternativa 100% local**: introduce todo manualmente en la pestaña "Operaciones".
+- **Consentimiento explícito requerido** en la app antes de procesar cualquier documento.
+
+**Resumen:** Si quieres máxima privacidad, no uses el analizador de IA — Angel Tax es completamente funcional en modo manual. Si lo usas, aceptas que Anthropic ve puntualmente tus documentos (política de privacidad: [anthropic.com/privacy](https://anthropic.com/privacy)).
+
 ---
 
 ## 🔒 Privacidad por diseño

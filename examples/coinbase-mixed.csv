@@ -1,0 +1,11 @@
+Date,Operation,Coin,Change,Turnover,Remark
+2024-01-05,Buy,ETH,2.5,4250,Compra inicial en Coinbase
+2024-02-14,Buy,BTC,0.08,3200,Compra menor — estrategia DCA
+2024-03-10,Sell,ETH,1,4800,Venta parcial — tomar ganancias
+2024-04-22,Staking,ETH,1.5,800,Recompensas staking Ethereum
+2024-05-18,Swap,BTC,0.04,1600,Intercambio BTC → USDC en DEX (Uniswap)
+2024-06-30,Airdrop,OPTIMISM,300,1200,Airdrop OP por holders
+2024-07-15,Converting,USDC,1000,1000,Conversión a stablecoin (no tributa)
+2024-08-20,Lending,USDC,2000,50,Recompensas por lending en Compound
+2024-09-05,Sell,BTC,0.04,2200,Cierre de posición — parto de ganancias
+2024-10-12,Buy,SOL,5,450,Diversificación — adición tardía
