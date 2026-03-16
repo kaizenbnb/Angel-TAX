@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8"/>
@@ -103,6 +103,13 @@
     .fw7{font-weight:700} .ff-serif{font-family:'Playfair Display',serif}
     select{background:var(--sur2);border:1px solid var(--bor);border-radius:8px;color:var(--text);padding:5px 10px;font-size:12px;font-family:'DM Sans',system-ui;outline:none}
     a{color:var(--blue)}
+    /* ICONS */
+    .icon{vertical-align:middle;width:16px;height:16px}
+    .icon-large{vertical-align:middle;width:28px;height:28px}
+    /* FOOTER */
+    #footer{background:var(--sur);border-top:1px solid var(--bor);padding:24px;margin-top:60px;text-align:center;font-size:12px;color:var(--dim);line-height:1.6}
+    #footer a{color:var(--blue);text-decoration:none}
+    #footer a:hover{text-decoration:underline}
     @media(max-width:640px){.form-grid,.form-grid3{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
   </style>
 </head>
@@ -120,7 +127,13 @@ const BUILD_DATE      = "2026-03-03";
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
-let state = { ops: [], lots: [], balances: [], year: String(new Date().getFullYear() - 1), costMethod: "fifo" };
+let state = { 
+  ops: [], lots: [], balances: [], 
+  year: String(new Date().getFullYear() - 1), 
+  costMethod: "fifo",
+  carryForwardLosses: 0,  // Pérdidas de años anteriores a compensar
+  priorYearLosses: {}     // {2023: -1200, 2022: -500, ...}
+};
 let currentTab = "home";
 let currentOpType = null;
 let formData = {};
@@ -321,13 +334,14 @@ function render() {
     ${currentTab==="report" ? renderReport(sm)  : ""}
     ${currentTab==="guide"  ? renderGuide()     : ""}
     ${renderPrivacyBar()}
-    <div style="text-align:center;padding:16px 0 8px;font-size:11px;color:var(--mut)">
-      Angel Tax v${APP_VERSION} · Ruleset ${RULESET_VERSION} · ${BUILD_DATE} ·
-      <a href="https://github.com/kaizenbnb/Angel-TAX" target="_blank" rel="noopener" style="color:var(--mut);text-decoration:none">GitHub</a> ·
-      <span style="cursor:pointer;color:var(--mut)" onclick="selfCheck()">🧪 self-check</span>
+    <div id="footer">
+      <div style="margin-bottom:12px; font-weight:700">Angel Tax v${APP_VERSION} • Marzo 2026</div>
+      <div style="margin-bottom:8px">No es asesoramiento fiscal. Consulta siempre con un profesional antes de presentar tu declaración.</div>
+      <div>Código abierto: <a href="https://github.com/kaizenbnb/Angel-TAX" target="_blank" rel="noopener">GitHub • kaizenbnb/Angel-TAX</a></div>
     </div>
   `;
   attachEvents();
+  if (window.feather) feather.replace();
 }
 
 // ═══════════════════════════════════════════
@@ -365,42 +379,9 @@ function renderHeader() {
   return `
     <div class="header">
       <div class="logo">
-        <div class="logo-icon" style="background:none;box-shadow:none;overflow:visible;padding:0"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="44" height="44">
-  <defs>
-    <linearGradient id="wingL" x1="100%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%"  stop-color="#ffe066" stop-opacity="1"/>
-      <stop offset="60%" stop-color="#d4a017" stop-opacity="0.85"/>
-      <stop offset="100%" stop-color="#8b6000" stop-opacity="0.3"/>
-    </linearGradient>
-    <linearGradient id="wingR" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%"  stop-color="#ffe066" stop-opacity="1"/>
-      <stop offset="60%" stop-color="#d4a017" stop-opacity="0.85"/>
-      <stop offset="100%" stop-color="#8b6000" stop-opacity="0.3"/>
-    </linearGradient>
-    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="3.5" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-  </defs>
-  <g filter="url(#glow)">
-    <path d="M 85 95 C 72 80, 48 66, 22 52 C 30 68, 44 80, 50 95 C 36 86, 20 76, 10 68 C 18 84, 34 98, 46 108 C 32 104, 16 96, 6 92 C 16 112, 38 122, 58 118 C 68 114, 78 106, 84 98 Z" fill="url(#wingL)" stroke="#f0c93a" stroke-width="0.8" stroke-opacity="0.6"/>
-    <path d="M 84 95 C 66 82, 44 72, 24 60" fill="none" stroke="#fff5a0" stroke-width="1" stroke-opacity="0.5" stroke-linecap="round"/>
-    <path d="M 78 105 C 58 94, 36 88, 14 82" fill="none" stroke="#fff5a0" stroke-width="0.8" stroke-opacity="0.38" stroke-linecap="round"/>
-    <path d="M 70 114 C 52 108, 32 106, 12 104" fill="none" stroke="#fff5a0" stroke-width="0.7" stroke-opacity="0.28" stroke-linecap="round"/>
-  </g>
-  <g filter="url(#glow)">
-    <path d="M 115 95 C 128 80, 152 66, 178 52 C 170 68, 156 80, 150 95 C 164 86, 180 76, 190 68 C 182 84, 166 98, 154 108 C 168 104, 184 96, 194 92 C 184 112, 162 122, 142 118 C 132 114, 122 106, 116 98 Z" fill="url(#wingR)" stroke="#f0c93a" stroke-width="0.8" stroke-opacity="0.6"/>
-    <path d="M 116 95 C 134 82, 156 72, 176 60" fill="none" stroke="#fff5a0" stroke-width="1" stroke-opacity="0.5" stroke-linecap="round"/>
-    <path d="M 122 105 C 142 94, 164 88, 186 82" fill="none" stroke="#fff5a0" stroke-width="0.8" stroke-opacity="0.38" stroke-linecap="round"/>
-    <path d="M 130 114 C 148 108, 168 106, 188 104" fill="none" stroke="#fff5a0" stroke-width="0.7" stroke-opacity="0.28" stroke-linecap="round"/>
-  </g>
-  <path d="M 100 42 L 60 58 L 60 105 Q 60 138 100 155 Q 140 138 140 105 L 140 58 Z" fill="#1e3a6e"/>
-  <path d="M 100 42 L 60 58 L 60 105 Q 60 138 100 155 Q 80 138 80 105 L 80 58 Z" fill="#2a5298" opacity="0.7"/>
-  <path d="M 100 42 L 60 58 L 70 62 L 100 50 L 130 62 L 140 58 Z" fill="#4a90d9" opacity="0.6"/>
-  <path d="M 100 42 L 60 58 L 60 105 Q 60 138 100 155 Q 140 138 140 105 L 140 58 Z" fill="none" stroke="#6ab0f5" stroke-width="2" stroke-opacity="0.8"/>
-  <path d="M 100 52 L 68 65 L 68 104 Q 68 130 100 144 Q 132 130 132 104 L 132 65 Z" fill="none" stroke="#e8c04a" stroke-width="1" stroke-opacity="0.35"/>
-  <ellipse cx="80" cy="72" rx="8" ry="5" fill="#7ec8ff" opacity="0.25" transform="rotate(-15,80,72)"/>
-</svg></div>
+        <div class="logo-icon" style="width:44px;height:44px;background:none;box-shadow:none">
+            <img src="assets/logo.png" width="44" height="44" alt="Angel Tax" style="width:100%;height:auto" />
+          </div>
         <div>
           <h1>Angel Tax</h1>
           <span>Fiscalidad Cripto · España · <span style="color:var(--gold);font-weight:700">v${APP_VERSION}</span></span>
@@ -447,7 +428,7 @@ function renderNav(sm) {
   ];
   return `<div class="nav">${tabs.map(t=>`
     <button onclick="goTab('${t.id}')" class="${currentTab===t.id?"active":""}">
-      ${t.icon} ${t.label}
+      <i data-feather="${t.icon}" class="icon"></i> ${t.label}
       ${t.id==="home"&&sm&&sm.base>0?`<span class="cnt">${state.ops.length}</span>`:""}
     </button>`).join("")}
   </div>`;
@@ -466,28 +447,7 @@ function renderHome(sm) {
 
       <!-- Logo grande -->
       <div style="margin-bottom:20px;opacity:0.9">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100" height="100" style="filter:drop-shadow(0 0 20px rgba(201,162,39,.3))">
-          <defs>
-            <linearGradient id="wL2" x1="100%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#ffe066"/><stop offset="60%" stop-color="#d4a017" stop-opacity=".85"/><stop offset="100%" stop-color="#8b6000" stop-opacity=".3"/></linearGradient>
-            <linearGradient id="wR2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ffe066"/><stop offset="60%" stop-color="#d4a017" stop-opacity=".85"/><stop offset="100%" stop-color="#8b6000" stop-opacity=".3"/></linearGradient>
-            <filter id="gw2"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-          </defs>
-          <g filter="url(#gw2)">
-            <path d="M 85 95 C 72 80, 48 66, 22 52 C 30 68, 44 80, 50 95 C 36 86, 20 76, 10 68 C 18 84, 34 98, 46 108 C 32 104, 16 96, 6 92 C 16 112, 38 122, 58 118 C 68 114, 78 106, 84 98 Z" fill="url(#wL2)" stroke="#f0c93a" stroke-width="0.8" stroke-opacity="0.6"/>
-            <path d="M 84 95 C 66 82, 44 72, 24 60" fill="none" stroke="#fff5a0" stroke-width="1" stroke-opacity="0.5" stroke-linecap="round"/>
-            <path d="M 78 105 C 58 94, 36 88, 14 82" fill="none" stroke="#fff5a0" stroke-width="0.8" stroke-opacity="0.38" stroke-linecap="round"/>
-          </g>
-          <g filter="url(#gw2)">
-            <path d="M 115 95 C 128 80, 152 66, 178 52 C 170 68, 156 80, 150 95 C 164 86, 180 76, 190 68 C 182 84, 166 98, 154 108 C 168 104, 184 96, 194 92 C 184 112, 162 122, 142 118 C 132 114, 122 106, 116 98 Z" fill="url(#wR2)" stroke="#f0c93a" stroke-width="0.8" stroke-opacity="0.6"/>
-            <path d="M 116 95 C 134 82, 156 72, 176 60" fill="none" stroke="#fff5a0" stroke-width="1" stroke-opacity="0.5" stroke-linecap="round"/>
-            <path d="M 122 105 C 142 94, 164 88, 186 82" fill="none" stroke="#fff5a0" stroke-width="0.8" stroke-opacity="0.38" stroke-linecap="round"/>
-          </g>
-          <path d="M 100 42 L 60 58 L 60 105 Q 60 138 100 155 Q 140 138 140 105 L 140 58 Z" fill="#1e3a6e"/>
-          <path d="M 100 42 L 60 58 L 60 105 Q 60 138 100 155 Q 80 138 80 105 L 80 58 Z" fill="#2a5298" opacity="0.7"/>
-          <path d="M 100 42 L 60 58 L 70 62 L 100 50 L 130 62 L 140 58 Z" fill="#4a90d9" opacity="0.6"/>
-          <path d="M 100 42 L 60 58 L 60 105 Q 60 138 100 155 Q 140 138 140 105 L 140 58 Z" fill="none" stroke="#6ab0f5" stroke-width="2" stroke-opacity="0.8"/>
-          <path d="M 100 52 L 68 65 L 68 104 Q 68 130 100 144 Q 132 130 132 104 L 132 65 Z" fill="none" stroke="#e8c04a" stroke-width="1" stroke-opacity="0.35"/>
-        </svg>
+        <img src="assets/logo-hero.png" alt="Angel Tax" width="140" height="140" style="filter:drop-shadow(0 0 20px rgba(201,162,39,.3));max-width:100%" />
       </div>
 
       <h2 class="ff-serif" style="font-size:32px;color:var(--gold2);margin-bottom:10px;line-height:1.2">Angel Tax</h2>
@@ -654,7 +614,7 @@ function renderHome(sm) {
         {icon:"📚", t:"Guía fiscal completa",  d:"DeFi, LP pools, lending, Chainalysis, Modelo 721, compensaciones", tab:"guide"},
       ].map(f=>`
         <div onclick="goTab('${f.tab}')" style="background:var(--sur2);border:1px solid var(--bor);border-radius:10px;padding:16px;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--bor2)'" onmouseout="this.style.borderColor='var(--bor)'">
-          <div style="font-size:22px;margin-bottom:8px">${f.icon}</div>
+          <div style="font-size:22px;margin-bottom:8px"><i data-feather="${f.icon}" class="icon-large"></i></div>
           <div style="font-weight:600;font-size:13px;margin-bottom:4px">${f.t}</div>
           <div style="font-size:11px;color:var(--mut);line-height:1.5">${f.d}</div>
         </div>`).join("")}
@@ -718,18 +678,18 @@ function renderHome(sm) {
           <tbody>
             ${state.ops.map(op=>`
               <tr>
-                <td class="c-dim" style="font-size:12px">${op.date}</td>
+                <td class="c-dim" style="font-size:12px">${sanitize(op.date)}</td>
                 <td>
-                  <span style="background:var(--bd);color:var(--blue);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600">${op.typeName}</span>
+                  <span style="background:var(--bd);color:var(--blue);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600">${sanitize(op.typeName)}</span>
                   ${op.fifoMode?`<span style="background:#0a1a2a;color:var(--blue);border:1px solid var(--blue);border-radius:8px;padding:1px 6px;font-size:10px;margin-left:4px">FIFO</span>`:""}
                 </td>
-                <td class="fw7">${op.asset}</td>
+                <td class="fw7">${sanitize(op.asset)}</td>
                 <td class="c-dim" style="font-size:12px">${op.qty?fmtQty(op.qty):"—"}</td>
                 <td>${["compraventa","permuta","pago","nft","lp_retiro","liquidacion","envio_regalo"].includes(op.type)?fmt(op.acq):"—"}</td>
                 <td>${fmt(op.trans)}</td>
                 <td class="${op.gain>=0?"c-green":"c-red"} fw7">${op.gain>=0?"+":""}${fmt(op.gain)}</td>
-                <td><span class="casilla${op.casilla==="1800"||op.casilla==="0033"||op.casilla==="1626"?"":" casilla-gold"}">${op.casilla}</span></td>
-                <td><button class="btn-icon btn-delete-op" data-op-id="${op.id}">🗑</button></td>
+                <td><span class="casilla${op.casilla==="1800"||op.casilla==="0033"||op.casilla==="1626"?"":" casilla-gold"}">${sanitize(op.casilla)}</span></td>
+                <td><button class="btn-icon btn-delete-op" data-op-id="${sanitize(op.id)}">🗑</button></td>
               </tr>`).join("")}
           </tbody>
         </table>
@@ -739,11 +699,8 @@ function renderHome(sm) {
 
 
 function syncDate() {
-  const y = document.getElementById('f-year')?.value || '';
-  const m = document.getElementById('f-mon')?.value  || '';
-  const d = document.getElementById('f-day')?.value  || '';
-  const hidden = document.getElementById('f-date');
-  if (hidden) hidden.value = (y && m && d) ? y+'-'+m+'-'+d : '';
+  // Ya no necesitamos sincronizar selectores separados
+  // La fecha se obtiene directamente del input type="date"
 }
 
 // ── COINGECKO HISTORICAL PRICE REFERENCE ────────────────────────────
@@ -814,12 +771,12 @@ function renderAdd() {
       <div class="op-grid">
         ${OPS.map(op=>`
           <div class="op-card" onclick="selectOpType('${op.id}')">
-            <div style="font-size:28px;margin-bottom:10px">${op.icon}</div>
+            <div style="font-size:28px;margin-bottom:10px"><i data-feather="${op.icon}" class="icon-large"></i></div>
             <div style="font-weight:600;margin-bottom:4px">${op.name}</div>
             <div style="font-size:12px;color:var(--dim);margin-bottom:12px">${op.desc}</div>
             ${op.noTax
               ? `<span style="background:#0a2a0a;color:var(--green);border:1px solid var(--green);border-radius:12px;padding:3px 10px;font-size:11px;font-weight:700">✅ NO TRIBUTA</span>`
-              : `<span class="casilla${op.isGeneral?" casilla-gold":""}">${op.casilla}</span>`
+              : `<span class="casilla${op.isGeneral?" casilla-gold":""}">${sanitize(op.casilla)}</span>`
             }
           </div>`).join("")}
       </div>
@@ -836,8 +793,8 @@ function renderAdd() {
   return `<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:12px">
       <div>
-        <div class="card-title">${op.icon} ${op.name}</div>
-        <div class="card-sub">Casilla: <span class="casilla${op.isGeneral?" casilla-gold":""}">${op.casilla}</span></div>
+        <div class="card-title"><i data-feather="${op.icon}" class="icon"></i> ${op.name}</div>
+        <div class="card-sub">Casilla: <span class="casilla${op.isGeneral?" casilla-gold":""}">${sanitize(op.casilla)}</span></div>
       </div>
       <button class="btn-sec" onclick="selectOpType(null)">← Cambiar tipo</button>
     </div>
@@ -860,20 +817,8 @@ function renderAdd() {
       </div>
       <div class="form-group">
         <label class="form-label">Fecha de operación</label>
-        <div style="display:flex;gap:8px;align-items:center">
-        <select class="form-input" id="f-day" style="flex:1" onchange="syncDate();saveFormData();calcResult=null;render();setTimeout(fetchCoinPrice,0)">
-          <option value="">Día</option>
-          ${Array.from({length:31},(_,i)=>{const d=String(i+1).padStart(2,'0');const fd=(formData.date||'').split('-')[2]||'';return `<option value="${d}" ${fd===d?'selected':''}>${d}</option>`;}).join('')}
-        </select>
-        <select class="form-input" id="f-mon" style="flex:2" onchange="syncDate();saveFormData();calcResult=null;render();setTimeout(fetchCoinPrice,0)">
-          <option value="">Mes</option>
-          ${[['01','Enero'],['02','Febrero'],['03','Marzo'],['04','Abril'],['05','Mayo'],['06','Junio'],['07','Julio'],['08','Agosto'],['09','Septiembre'],['10','Octubre'],['11','Noviembre'],['12','Diciembre']].map(([v,n])=>{const fm=(formData.date||'').split('-')[1]||'';return `<option value="${v}" ${fm===v?'selected':''}>${n}</option>`;}).join('')}
-        </select>
-        <select class="form-input" id="f-year" style="flex:1.5" onchange="syncDate();saveFormData();calcResult=null;render();setTimeout(fetchCoinPrice,0)">
-          <option value="">Año</option>
-          ${Array.from({length:10},(_,i)=>{const y=String(2025-i);const fy=(formData.date||'').split('-')[0]||'';return `<option value="${y}" ${fy===y?'selected':''}>${y}</option>`;}).join('')}
-        </select>
-        <input type="hidden" id="f-date" value="${formData.date||''}"/>
+        <input type="date" class="form-input" id="f-date" value="${formData.date||""}" onchange="saveFormData();calcResult=null;setTimeout(fetchCoinPrice,100)"/>
+        <div class="form-hint">Selecciona la fecha de la operación</div>
       </div>
       <div id="price-ref" style="margin-top:6px;min-height:20px;font-size:11px;color:var(--dim)"></div>
       </div>
@@ -924,8 +869,8 @@ function renderAdd() {
       <select class="form-input" id="f-lotid" onchange="saveFormData();calcResult=null;render()">
         <option value="">-- Elige el lote --</option>
         ${getSpecificLots(formData.asset||"").map(l=>`
-          <option value="${l.id}" ${formData.lotId===l.id?"selected":""}>
-            ${l.date} · ${fmtQty(l.qtyRemaining)} ${l.asset} disponibles · ${fmt(l.pricePerUnit)} €/u (coste ${fmt(l.qtyRemaining*l.pricePerUnit)} €)
+          <option value="${sanitize(l.id)}" ${formData.lotId===l.id?"selected":""}>
+            ${sanitize(l.date)} · ${fmtQty(l.qtyRemaining)} ${sanitize(l.asset)} disponibles · ${fmt(l.pricePerUnit)} €/u (coste ${fmt(l.qtyRemaining*l.pricePerUnit)} €)
           </option>`).join("")}
       </select>
     </div>` : ""}
@@ -1021,7 +966,7 @@ function renderAdd() {
         </div>
         ${calcResult.fifo.lotsUsed.map(l=>`
         <div class="result-row" style="font-size:12px">
-          <span class="c-dim">Lote ${l.lotDate}</span>
+          <span class="c-dim">Lote ${sanitize(l.lotDate)}</span>
           <span>${fmtQty(l.qty)} u × ${fmt(l.pricePerUnit)} €/u = <strong class="c-gold">${fmt(l.acqCost)} €</strong></span>
         </div>`).join("")}
         <div style="border-top:1px solid var(--bd);margin:8px 0"></div>
@@ -1085,14 +1030,14 @@ function renderReport(sm) {
               const statusColor = pct===0?"var(--red)":pct===100?"var(--green)":"var(--orange)";
               const statusLabel = pct===0?"Consumido":pct===100?"Disponible":"Parcial";
               return `<tr>
-                <td class="c-dim" style="font-size:12px">${l.date}</td>
-                <td class="fw7">${l.asset}</td>
+                <td class="c-dim" style="font-size:12px">${sanitize(l.date)}</td>
+                <td class="fw7">${sanitize(l.asset)}</td>
                 <td>${fmtQty(l.qty)}</td>
                 <td style="color:${statusColor};font-weight:700">${fmtQty(l.qtyRemaining)}</td>
                 <td class="c-gold">${fmt(l.pricePerUnit)} €</td>
                 <td>${fmt(l.totalEur + l.fees)} €</td>
                 <td><span style="background:var(--bd);color:${statusColor};border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">${statusLabel}</span></td>
-                <td><button class="btn-icon" onclick="deleteLot('${l.id}')">🗑</button></td>
+                <td><button class="btn-icon" onclick="deleteLot('${sanitize(l.id)}')">🗑</button></td>
               </tr>`;
             }).join("")}
           </tbody>
@@ -1132,10 +1077,36 @@ function renderReport(sm) {
           <option value="pdf">PDF</option>
         </select>
         <button class="btn-primary" onclick="downloadSelectedReport()">⬇️ Descargar</button>
+        <button class="btn-secondary" onclick="exportToJSON()" title="Exporta en formato JSON para Hacienda">📋 JSON</button>
       </div>
       <button class="btn-sec" style="color:var(--red);border-color:var(--red)" onclick="clearSavedState()">🗑 Borrar todo</button>
       <button class="btn-sec" style="color:var(--blue);border-color:var(--blue)" onclick="loadDemoData()">🎭 Cargar demo</button>
       <button class="btn-sec" style="color:var(--dim)" title="Comprueba cálculos internos (para desarrolladores)" onclick="selfCheck()">🧪 Prueba técnica</button>
+    </div>
+
+    <!-- COMPENSACIÓN INTER-EJERCICIOS -->
+    <div class="card" style="border-color:var(--gold);background:linear-gradient(to right, var(--gold-glow), transparent)">
+      <div style="margin-bottom:12px"><span class="casilla">Regla 4 años</span></div>
+      <div style="font-weight:600;font-size:15px;margin-bottom:14px">Compensación de pérdidas de ejercicios anteriores</div>
+      <div style="font-size:13px;color:var(--dim);margin-bottom:16px">
+        Las pérdidas netas de transmisiones de ejercicios anteriores pueden compensar ganancias de los siguientes 4 años.
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>
+          <label style="display:block;font-size:12px;color:var(--dim);margin-bottom:4px;font-weight:600">Pérdidas pendientes (€)</label>
+          <input type="number" id="priorLossesInput" value="${state.carryForwardLosses}" onchange="updateCarryForwardLosses(this.value)" style="width:100%;padding:8px;background:var(--sur2);border:1px solid var(--bor);color:var(--text);border-radius:6px;font-size:14px" placeholder="0" />
+          <div style="font-size:11px;color:var(--mut);margin-top:4px">Introduce como negativo: -1200</div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--dim);margin-bottom:4px;font-weight:600">Compensables este año</div>
+          <div style="padding:8px;background:var(--sur2);border:1px solid var(--bor);border-radius:6px;font-weight:700;color:var(--gold2)">
+            ${fmt(Math.min(Math.abs(state.carryForwardLosses), Math.max(sm.net, 0)))} €
+          </div>
+        </div>
+      </div>
+      <div class="alert alert-blue" style="font-size:12px">
+        💡 <strong>Cómo funciona:</strong> Si tienes -1.000€ de 2023 y +500€ de ganancias este año, compensa -500€ (quedan -500€ para 2027).
+      </div>
     </div>
 
     <div class="card" style="border-color:var(--bor2)">
@@ -1365,13 +1336,13 @@ function renderImportPreview() {
           <tbody>
             ${p.slice(0,8).map(op=>`
               <tr>
-                <td style="font-size:12px;color:var(--dim)">${op.date}</td>
-                <td style="font-weight:600">${op.asset}</td>
-                <td><span style="background:var(--bd);color:var(--blue);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600">${op.typeName}</span></td>
+                <td style="font-size:12px;color:var(--dim)">${sanitize(op.date)}</td>
+                <td style="font-weight:600">${sanitize(op.asset)}</td>
+                <td><span style="background:var(--bd);color:var(--blue);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600">${sanitize(op.typeName)}</span></td>
                 <td>${op.acq>0?fmt(op.acq):"—"}</td>
                 <td>${fmt(op.trans)}</td>
                 <td style="color:${op.gain>=0?"var(--green)":"var(--red)"};font-weight:700">${op.gain>=0?"+":""}${fmt(op.gain)}</td>
-                <td><span class="casilla">${op.casilla}</span></td>
+                <td><span class="casilla">${sanitize(op.casilla)}</span></td>
               </tr>`).join("")}
             ${p.length>8?`<tr><td colspan="7" style="text-align:center;color:var(--dim);font-size:12px;padding:12px">... y ${p.length-8} operaciones más</td></tr>`:""}
           </tbody>
@@ -1395,13 +1366,13 @@ function renderImportPreview() {
           <tbody>
             ${lots.slice(0,8).map(l=>`
               <tr>
-                <td style="font-size:12px;color:var(--dim)">${l.date}</td>
-                <td style="font-weight:600">${l.asset}</td>
+                <td style="font-size:12px;color:var(--dim)">${sanitize(l.date)}</td>
+                <td style="font-weight:600">${sanitize(l.asset)}</td>
                 <td>${fmtQty(l.qty)}</td>
                 <td class="c-gold fw7">${fmt(l.totalEur)} €</td>
                 <td class="c-dim" style="font-size:12px">${l.qty>0?fmt((l.totalEur+l.fees)/l.qty)+" €/u":"—"}</td>
                 <td class="c-dim" style="font-size:12px">${l.fees>0?fmt(l.fees)+" €":"—"}</td>
-                <td><span style="background:var(--bd);color:var(--blue);border-radius:8px;padding:2px 8px;font-size:11px">${l.source}</span></td>
+                <td><span style="background:var(--bd);color:var(--blue);border-radius:8px;padding:2px 8px;font-size:11px">${sanitize(l.source)}</span></td>
               </tr>`).join("")}
             ${lots.length>8?`<tr><td colspan="7" style="text-align:center;color:var(--dim);font-size:12px;padding:12px">... y ${lots.length-8} lotes más</td></tr>`:""}
           </tbody>
@@ -2269,63 +2240,25 @@ function selfCheck() {
 // ═══════════════════════════════════════════
 let analyzeState = {
   file: null, fileName: "", fileType: "", loading: false,
-  result: null, error: null, previewOps: null, previewSummary: null
+  result: null, error: null, previewOps: null, previewSummary: null, awaitingConsent: false
 };
 
 function renderAnalyze() {
-  const st = analyzeState;
   return `<div class="card">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
       <div class="card-title">🤖 Analizador IA de Documentos</div>
       <span style="background:linear-gradient(135deg,#c9a227,#e8c04a);color:#0a0c14;border-radius:20px;padding:2px 10px;font-size:10px;font-weight:700;letter-spacing:1px">BETA</span>
     </div>
-    <div class="card-sub" style="margin-bottom:20px">Sube cualquier informe fiscal y la IA extrae automáticamente tus datos</div>
-
-    <div class="alert alert-gold">
-      🔒 <strong>Privacidad:</strong> Tu documento se envía a la API de <strong>Anthropic (Claude)</strong> para su análisis. <strong>No se almacena en ningún servidor propio.</strong> Anthropic puede conservar datos según su política de privacidad en <a href="https://www.anthropic.com/privacy" target="_blank" rel="noopener" style="color:var(--gold2)">anthropic.com/privacy</a>. Se envía únicamente el contenido del archivo (máx. 80.000 caracteres). Puedes anonimizar nombres y DNI antes de subir.
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center;gap:16px">
+      <div style="font-size:64px">🚧</div>
+      <div style="font-size:20px;font-weight:700;color:var(--gold2)">Temporalmente fuera de servicio</div>
+      <div style="font-size:14px;color:var(--dim);max-width:420px;line-height:1.6">
+        Esta funcionalidad estará disponible próximamente.<br>
+        Mientras tanto, puedes introducir tus operaciones manualmente en la pestaña <strong>Nueva Operación</strong>.
+      </div>
     </div>
-
-    <!-- FORMATOS SOPORTADOS -->
-    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px">
-      ${[
-        {ext:"PDF",   icon:"📄", c:"#e05252"},
-        {ext:"CSV",   icon:"📊", c:"#3dba7a"},
-        {ext:"Excel", icon:"📗", c:"#3dba7a"},
-        {ext:"PNG",   icon:"🖼️", c:"#4d82e8"},
-        {ext:"JPG",   icon:"📷", c:"#4d82e8"},
-      ].map(f=>`<span style="background:var(--sur2);border:1px solid var(--bor);border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;color:${f.c}">${f.icon} ${f.ext}</span>`).join("")}
-    </div>
-
-    <!-- UPLOAD ZONE -->
-    ${!st.file && !st.loading && !st.result ? `
-    <label id="analyzeDropzone" style="display:block;background:var(--sur2);border:2px dashed var(--bor2);border-radius:14px;padding:40px;text-align:center;cursor:pointer;transition:all .2s" ondragover="event.preventDefault();this.style.borderColor='var(--gold)'" ondragleave="this.style.borderColor='var(--bor2)'" ondrop="handleAnalyzeDrop(event)">
-      <input type="file" id="analyzeFile" accept=".pdf,.csv,.xlsx,.xls,.png,.jpg,.jpeg" style="display:none" onchange="handleAnalyzeFile(this)"/>
-      <div style="font-size:48px;margin-bottom:12px">📂</div>
-      <div style="font-weight:700;font-size:16px;color:var(--text);margin-bottom:6px">Arrastra tu documento aquí</div>
-      <div style="font-size:13px;color:var(--dim);margin-bottom:16px">o haz clic para seleccionar</div>
-      <div style="display:inline-block;background:linear-gradient(135deg,#c9a227,#e8c04a);color:#0a0c14;padding:10px 24px;border-radius:8px;font-weight:700;font-size:14px">Seleccionar archivo</div>
-    </label>` : ""}
-
-    <!-- LOADING -->
-    ${st.loading ? `
-    <div style="text-align:center;padding:48px 20px">
-      <div style="font-size:48px;margin-bottom:16px;animation:spin 1s linear infinite;display:inline-block">⚙️</div>
-      <div style="font-weight:700;font-size:16px;color:var(--gold2);margin-bottom:8px">Analizando documento...</div>
-      <div style="font-size:13px;color:var(--dim)">${st.fileName}</div>
-      <div style="font-size:12px;color:var(--mut);margin-top:8px">La IA está extrayendo tus operaciones fiscales</div>
-    </div>
-    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>` : ""}
-
-    <!-- ERROR -->
-    ${st.error ? `
-    <div class="alert alert-red">❌ <strong>Error:</strong> ${st.error}</div>
-    <button class="btn-sec" onclick="resetAnalyze()">← Intentar de nuevo</button>` : ""}
-
-    <!-- RESULTADO -->
-    ${st.result && !st.loading ? renderAnalyzeResult() : ""}
   </div>`;
 }
-
 function renderAnalyzeResult() {
   const r = analyzeState.result;
   const ops = analyzeState.previewOps || [];
@@ -2381,13 +2314,13 @@ function renderAnalyzeResult() {
         <thead><tr><th>Fecha</th><th>Activo</th><th>Tipo</th><th>Adquisición</th><th>Transmisión</th><th>G/P Neta</th><th>Casilla</th></tr></thead>
         <tbody>
           ${ops.slice(0,15).map(op=>`<tr>
-            <td style="font-size:12px;color:var(--dim)">${op.date}</td>
-            <td style="font-weight:600">${op.asset}</td>
-            <td><span style="background:var(--bd);color:var(--blue);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600">${op.typeName}</span></td>
+            <td style="font-size:12px;color:var(--dim)">${sanitize(op.date)}</td>
+            <td style="font-weight:600">${sanitize(op.asset)}</td>
+            <td><span style="background:var(--bd);color:var(--blue);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600">${sanitize(op.typeName)}</span></td>
             <td>${op.acq>0?fmt(op.acq):"—"}</td>
             <td>${fmt(op.trans)}</td>
             <td style="color:${op.gain>=0?"var(--green)":"var(--red)"};font-weight:700">${op.gain>=0?"+":""}${fmt(op.gain)}</td>
-            <td><span class="casilla">${op.casilla}</span></td>
+            <td><span class="casilla">${sanitize(op.casilla)}</span></td>
           </tr>`).join("")}
           ${ops.length>15?`<tr><td colspan="7" style="text-align:center;color:var(--dim);font-size:12px;padding:12px">... y ${ops.length-15} operaciones más</td></tr>`:""}
         </tbody>
@@ -2413,18 +2346,43 @@ function renderAnalyzeResult() {
 function handleAnalyzeDrop(e) {
   e.preventDefault();
   const file = e.dataTransfer.files[0];
-  if (file) processAnalyzeFile(file);
+  if (file) {
+    analyzeState.file = file;
+    analyzeState.fileName = file.name;
+    analyzeState.fileType = file.type || "";
+    analyzeState.awaitingConsent = true;
+    render();
+  }
 }
 
 function handleAnalyzeFile(input) {
   const file = input.files[0];
-  if (file) processAnalyzeFile(file);
+  if (file) {
+    analyzeState.file = file;
+    analyzeState.fileName = file.name;
+    analyzeState.fileType = file.type || "";
+    analyzeState.awaitingConsent = true;
+    render();
+  }
 }
 
-async function processAnalyzeFile(file) {
-  analyzeState.file = file;
-  analyzeState.fileName = file.name;
-  analyzeState.fileType = file.type || "";
+function confirmAnalyzeWithConsent() {
+  if (!analyzeState.file) return;
+  analyzeState.awaitingConsent = false;
+  doAnalyzeFile(analyzeState.file);
+}
+
+function cancelAnalyzeConsent() {
+  analyzeState.file = null;
+  analyzeState.fileName = "";
+  analyzeState.fileType = "";
+  analyzeState.awaitingConsent = false;
+  analyzeState.loading = false;
+  analyzeState.error = null;
+  render();
+}
+
+async function doAnalyzeFile(file) {
   analyzeState.loading = true;
   analyzeState.error = null;
   analyzeState.result = null;
@@ -2639,6 +2597,90 @@ function downloadSelectedReport() {
   const fmt = document.getElementById("reportFormat").value;
   if (fmt === "pdf") generatePDFReport();
   else downloadReport();
+}
+
+// ─── JSON EXPORT FOR RENTA WEB ─────────────────────────
+function exportToJSON() {
+  const sm = getSummary();
+  const m721Total = getM721Total();
+  
+  // Detectar si hay pérdida neta (arrastrable)
+  const baseImpositiva = sm.base;
+  const hayPerdidaNeta = sm.losses > sm.gains;
+  const perdidaNeta = hayPerdidaNeta ? Math.min(sm.losses - sm.gains, baseImpositiva) : 0;
+  
+  const json = {
+    ejercicio: state.year,
+    generado: new Date().toISOString().split('T')[0],
+    app: { nombre: "Angel Tax", version: APP_VERSION, ruleset: RULESET_VERSION },
+    resumen: {
+      ganancias_1800: sm.gains,
+      perdidas_1800: sm.losses,
+      resultado_neto_1800: sm.net,
+      rendimientos_0033: sm.staking,
+      ganancias_1626: sm.airdrops,
+      base_imponible: baseImpositiva,
+      impuesto_estimado: sm.tax,
+      perdida_arrastrable: perdidaNeta > 0 ? perdidaNeta : 0
+    },
+    casillas: {
+      "1800": { descripcion: "Ganancias/pérdidas patrimoniales", valor: sm.net, moneda: "EUR" },
+      "0033": { descripcion: "Rendimientos capital mobiliario (staking, lending, LP)", valor: sm.staking, moneda: "EUR" },
+      "1626": { descripcion: "Ganancias no derivadas (airdrops, hardforks)", valor: sm.airdrops, moneda: "EUR" },
+      "0347": { descripcion: "Minería", valor: sm.mineria || 0, moneda: "EUR" }
+    },
+    modelo_721: {
+      aplica: m721Total >= 50000,
+      saldo_total_eur: m721Total,
+      saldo_umbral_eur: 50000,
+      exchanges: state.balances
+        .filter(b => b.foreign)
+        .map(b => ({ exchange: b.label, saldo: b.eur, moneda_nativa: b.foreign }))
+    },
+    operaciones: state.ops.map(o => ({
+      id: o.id,
+      fecha: o.date,
+      tipo: o.type,
+      activo: o.asset,
+      cantidad: o.qty,
+      adquisicion_eur: o.acq,
+      transmision_eur: o.trans,
+      comisiones_eur: o.fees,
+      ganancia_perdida_eur: o.gain,
+      casilla_fiscal: o.casilla,
+      metodo_fifo: !!o.fifoMode
+    })),
+    lotes_fifo: state.lots.map(l => ({
+      id: l.id,
+      activo: l.asset,
+      fecha_adquisicion: l.date,
+      cantidad_comprada: l.qty,
+      cantidad_disponible: l.qtyRemaining,
+      precio_unitario_eur: l.pricePerUnit,
+      coste_total_eur: l.totalEur,
+      comisiones_eur: l.fees
+    })),
+    notas: [
+      `Informe generado por Angel Tax v${APP_VERSION}`,
+      `Normativa: Ley 35/2006 IRPF, DGT V1766-22, V1948-21, Decreto 193/2004`,
+      `Método coste: ${state.costMethod === "specific" ? "Identificación específica" : "FIFO"}`,
+      `⚠️ Esta información es orientativa. Requiere validación por asesor fiscal certificado.`
+    ]
+  };
+  
+  // Descargar JSON
+  const filename = `Angel-TAX_${state.year}_${new Date().toISOString().split('T')[0]}.json`;
+  const blob = new Blob([JSON.stringify(json, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  showBanner(`✅ JSON exportado: ${filename}`);
 }
 
 // ─── PDF REPORT GENERATOR ────────────────────────────────
@@ -3255,9 +3297,9 @@ function renderM721Section() {
 
 // Format qty with up to 8 decimals, trimming trailing zeros
 function fmtQty(n) {
-  if (!n && n !== 0) return "—";
-  const s = parseFloat(n.toFixed(8)).toString();
-  return s;
+  const num = parseFloat(n);
+  if (isNaN(num)) return "—";
+  return parseFloat(num.toFixed(8)).toString();
 }
 
 // Total available qty for an asset
@@ -3324,7 +3366,7 @@ function calculate() {
       render();
       return;
     }
-    calcResult = { isLot: true, qty, total, fees, pricePerUnit: (total + fees) / qty };
+    calcResult = { isLot: true, qty, total, fees, pricePerUnit: qty > 0 ? (total + fees) / qty : 0 };
     render();
     return;
   }
@@ -3521,9 +3563,17 @@ function saveState() {
       lots: state.lots,
       balances: state.balances,
       year: state.year,
-      costMethod: state.costMethod
+      costMethod: state.costMethod,
+      carryForwardLosses: state.carryForwardLosses,
+      priorYearLosses: state.priorYearLosses
     }));
   } catch(e) { /* cuota excedida o privado */ }
+}
+
+function updateCarryForwardLosses(value) {
+  state.carryForwardLosses = parseFloat(value) || 0;
+  saveState();
+  render();
 }
 
 function loadState() {
@@ -3536,6 +3586,8 @@ function loadState() {
     if (saved.balances)  state.balances  = Array.isArray(saved.balances) ? saved.balances : [];
     if (saved.year)      state.year      = saved.year;
     if (saved.costMethod) state.costMethod = saved.costMethod;
+    if (saved.carryForwardLosses) state.carryForwardLosses = saved.carryForwardLosses;
+    if (saved.priorYearLosses) state.priorYearLosses = saved.priorYearLosses;
   } catch(e) { /* JSON inválido — ignorar */ }
 }
 
@@ -3588,6 +3640,7 @@ function loadDemoData() {
 loadState();
 render();
 </script>
+<script src="https://unpkg.com/feather-icons" onload="if(window.feather) feather.replace()"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" crossorigin="anonymous"></script>
 </body>

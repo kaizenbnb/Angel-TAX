@@ -1,0 +1,10 @@
+Date,Operation,Coin,Change,Turnover,Remark
+2024-01-10,Buy,BTC,1,32000,Compra inicial — HODL
+2024-02-15,Buy,ETH,10,13500,Stack para staking
+2024-03-20,Staking,ETH,0.5,1250,Recompensas ETH — staking pool
+2024-04-05,Airdrop,ARBITRUM,500,850,Airdrop DAO — sin contraprestación
+2024-05-12,Buy,SOL,20,2800,Diversificación — DeFi
+2024-06-18,Swap,SOL,10,3100,Permuta SOL → USDC en DEX (tributa 1800)
+2024-07-25,Staking,SOL,1.2,180,Recompensas SOL — validador delegado
+2024-08-30,Lending,USDC,0,0,Depósito en Aave — ganancia futura en recompensas
+2024-09-15,Staking,USDC,200,200,Recompensas Aave — lending rewards

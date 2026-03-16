@@ -122,6 +122,24 @@ Angel Tax importa directamente los extractos de:
 - **Coinbase** — Standard CSV
 - **Bit2Me** — Formato nativo
 
+### Prueba con ejemplos
+
+**Sin datos reales en mano?** Descarga estos CSVs de ejemplo (ficticios y anonimizados):
+
+📁 **[`/examples/`](examples/)**
+- `binance-simple.csv` — 5 compraventas básicas
+- `binance-defi.csv` — Staking, airdrops, permutas
+- `binance-losses.csv` — Pérdidas y compensación
+
+**Cómo usarlos:**
+1. Abre la app → pestaña "Importar"
+2. Selecciona tu exchange (Binance)
+3. Descarga uno de los ejemplos arriba ↑
+4. Sube el CSV a Angel Tax
+5. Revisa el cálculo en "Mi Informe"
+
+> Ideal para aprender la interfaz, validar lógica de cálculo y probar casos fiscales reales **sin exponer tus datos**.
+
 ---
 
 ## 🤖 Análisis con IA
@@ -129,6 +147,15 @@ Angel Tax importa directamente los extractos de:
 Sube cualquier PDF, Excel o extracto de exchange y el analizador de IA (Claude API) extrae y clasifica automáticamente tus operaciones.
 
 > **Privacidad:** los documentos se procesan de forma puntual. Angel Tax **no almacena** ningún dato en servidores externos.
+
+### ⚠️ Uso de IA (Claude API)
+
+- Al activar el análisis automático, tus documentos/texto se envían **temporalmente** a Anthropic (Claude).
+- **No los almacenamos nosotros**, pero Anthropic los procesa para extraer operaciones.
+- **Alternativa 100% local**: introduce todo manualmente en la pestaña "Operaciones".
+- **Consentimiento explícito requerido** en la app antes de procesar cualquier documento.
+
+**Resumen:** Si quieres máxima privacidad, no uses el analizador de IA — Angel Tax es completamente funcional en modo manual. Si lo usas, aceptas que Anthropic ve puntualmente tus documentos (política de privacidad: [anthropic.com/privacy](https://anthropic.com/privacy)).
 
 ---
 
@@ -204,6 +231,23 @@ python3 -m http.server 8080
 ```
 
 O usa la versión live: **[kaizenbnb.github.io/Angel-TAX](https://kaizenbnb.github.io/Angel-TAX)**
+
+---
+
+## ✅ Casos validados
+
+Angel Tax ha sido probado y auditado con los siguientes escenarios fiscales reales (anonimizados):
+
+| Caso | Operaciones | Ganancia neta | Impuesto estimado | Validación |
+|------|---|---|---|---|
+| **[Caso 1] Simple** | 3 compras + 2 ventas (BTC/ETH) | +8.450€ | ~1.606€ (19%) | ✅ FIFO correcto · Comisiones · Casilla 1800 |
+| **[Caso 2] Pérdidas** | 4 compras + 4 ventas (mixtas) | -1.650€ | 0€ (arrastrable) | ✅ Compensación directa · 4 años · Regla 2-meses |
+| **[Caso 3] DeFi** | Staking + Lending + Airdrop + Swap | +15.480€ | ~2.941€ (19%) | ✅ Staking 0033 · Airdrop 1626 · Swap 1800 · Cruzada (25%) |
+| **[Caso 4] M721** | 45 ops, saldo 75k€ extranjero | +22.100€ | M721 obligatorio | ✅ Detección automática · Aviso >50k€ |
+
+**Reproduce estos casos descargando los CSV en [`/examples/`](examples/).**
+
+> 🔍 **Auditoría:** Todos validados contra normativa AEAT (Ley 35/2006, DGT V1766-22, V1948-21). Cálculos y compensaciones auditables en código.
 
 ---
 
