@@ -1,9 +1,9 @@
-﻿// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════
 // METADATA
 // ═══════════════════════════════════════════
-const APP_VERSION     = "1.0.0";
+const APP_VERSION     = "1.1.0";
 const RULESET_VERSION = "2025-ES-v1";   // Normativa AEAT aplicada
-const BUILD_DATE      = "2026-03-03";
+const BUILD_DATE      = "2026-03-16";
 
 // ═══════════════════════════════════════════
 // STATE
@@ -164,7 +164,7 @@ function calcTax(gain) {
 
 function fmt(v) {
   if (v === null || v === undefined || isNaN(v)) return "—";
-  return new Intl.NumberFormat("es-ES", {style:"currency", currency:"EUR"}).format(v);
+  return new Intl.NumberFormat("es-ES", {style:"decimal", minimumFractionDigits:2, maximumFractionDigits:2}).format(v);
 }
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).substr(2,5); }
@@ -329,7 +329,7 @@ function renderHome(sm) {
 
       <!-- Logo grande -->
       <div style="margin-bottom:20px;opacity:0.9">
-        <img src="assets/logo-hero.png" alt="Angel Tax" width="140" height="140" style="filter:drop-shadow(0 0 20px rgba(201,162,39,.3));max-width:100%" />
+        <img src="assets/logo-hero.png" alt="Angel Tax" width="280" height="280" style="width:280px;height:280px;filter:drop-shadow(0 0 20px rgba(201,162,39,.3));max-width:100%" />
       </div>
 
       <h2 class="ff-serif" style="font-size:32px;color:var(--gold2);margin-bottom:10px;line-height:1.2">Angel Tax</h2>
@@ -2051,7 +2051,10 @@ function selfCheck() {
   check("TC-07 toNum '1.500,00 €'", toNum("1.500,00 €"), 1500);
 
   // TC-08: FIFO — dos lotes, venta 1.5 BTC
-  const lotsBackup = JSON.parse(JSON.stringify(state.lots));
+  let lotsBackup = [];
+  try {
+    lotsBackup = JSON.parse(JSON.stringify(state.lots));
+  } catch(e) { /* ignore */ }
   state.lots = [
     { id:"t1", asset:"BTC", date:"2024-01-01", qty:1, qtyRemaining:1, pricePerUnit:30000, totalEur:30000, fees:0 },
     { id:"t2", asset:"BTC", date:"2024-06-01", qty:1, qtyRemaining:1, pricePerUnit:40000, totalEur:40000, fees:0 },

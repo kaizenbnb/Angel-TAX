@@ -5,7 +5,10 @@ import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const js = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf-8');
+// Patch: convert top-level `let state` → `var state` so the VM exposes it
+// on the global context object, allowing tests to mutate state directly.
+const rawJs = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf-8');
+const js = rawJs.replace(/^let state\s*=/m, 'var state =');
 
 const mockDocument = {
   getElementById: () => ({ innerHTML: '', addEventListener: () => {} }),
@@ -22,8 +25,6 @@ const context = {
   localStorage: mockLocalStorage,
   Intl: Intl,
   URL: { createObjectURL: () => {} },
-  state: {ops:[],lots:[],balances:[],year:'2024',costMethod:'fifo'},
-  BRACKETS:null, toNum: null, fmt:null, fmtQty:null, fifoCalc:null, calcTax:null, getSummary:null
 };
 vm.createContext(context);
 vm.runInContext(js, context);

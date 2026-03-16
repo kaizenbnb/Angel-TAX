@@ -11,6 +11,7 @@
     "format": "prettier --write src"
   },
   "dependencies": {
+    "puppeteer": "^24.39.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
@@ -18,7 +19,17 @@
     "@vitejs/plugin-react": "^4.3.1",
     "vite": "^5.4.2"
   },
-  "keywords": ["criptomonedas", "fiscalidad", "españa", "irpf", "hacienda", "bitcoin", "crypto", "tax", "open-source"],
+  "keywords": [
+    "criptomonedas",
+    "fiscalidad",
+    "españa",
+    "irpf",
+    "hacienda",
+    "bitcoin",
+    "crypto",
+    "tax",
+    "open-source"
+  ],
   "author": "Angel Tax Contributors",
   "license": "MIT",
   "homepage": "https://angel-tax.github.io/angel-tax",
