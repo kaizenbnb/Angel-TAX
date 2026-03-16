@@ -3297,9 +3297,9 @@ function renderM721Section() {
 
 // Format qty with up to 8 decimals, trimming trailing zeros
 function fmtQty(n) {
-  if (!n && n !== 0) return "—";
-  const s = parseFloat(n.toFixed(8)).toString();
-  return s;
+  const num = parseFloat(n);
+  if (isNaN(num)) return "—";
+  return parseFloat(num.toFixed(8)).toString();
 }
 
 // Total available qty for an asset
@@ -3366,7 +3366,7 @@ function calculate() {
       render();
       return;
     }
-    calcResult = { isLot: true, qty, total, fees, pricePerUnit: (total + fees) / qty };
+    calcResult = { isLot: true, qty, total, fees, pricePerUnit: qty > 0 ? (total + fees) / qty : 0 };
     render();
     return;
   }
