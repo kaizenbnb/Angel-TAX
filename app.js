@@ -626,6 +626,8 @@ async function fetchCoinPrice() {
   const cacheKey = coinId + '_' + date;
   if (_priceCache[cacheKey]) { box.innerHTML = _priceCache[cacheKey]; return; }
   box.innerHTML = '⏳ Consultando precio histórico...';
+
+  // Intento 1: CoinGecko (solo fiable para los últimos ~365 días)
   try {
     const [y,m,d] = date.split('-');
     const geckoDate = d+'-'+m+'-'+y; // dd-mm-yyyy
@@ -633,10 +635,27 @@ async function fetchCoinPrice() {
     const r = await fetch(url);
     if (!r.ok) throw new Error('HTTP '+r.status);
     const data = await r.json();
+    if (data?.error) throw new Error('gecko_error');
     const eur = data?.market_data?.current_price?.eur;
     if (eur == null) throw new Error('sin datos EUR');
-    const fmt = new Intl.NumberFormat('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}).format(eur);
-    const html = '💡 Precio ref. CoinGecko ' + sanitize(date) + ': <strong style="color:var(--gold2)">' + fmt + ' €</strong> / ' + sanitize(asset);
+    const fmtVal = new Intl.NumberFormat('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}).format(eur);
+    const html = '💡 CoinGecko ' + sanitize(date) + ': <strong style="color:var(--gold2)">' + fmtVal + ' €</strong> / ' + sanitize(asset);
+    _priceCache[cacheKey] = html;
+    box.innerHTML = html;
+    return;
+  } catch(_) { /* fallback */ }
+
+  // Intento 2: CryptoCompare (histórico ilimitado, sin API key)
+  try {
+    const ts = Math.floor(new Date(date).getTime() / 1000) + 43200; // mediodía UTC
+    const url = 'https://min-api.cryptocompare.com/data/pricehistorical?fsym=' + encodeURIComponent(asset) + '&tsyms=EUR&ts=' + ts;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    const data = await r.json();
+    const eur = data?.[asset]?.EUR;
+    if (eur == null || eur === 0) throw new Error('sin datos EUR');
+    const fmtVal = new Intl.NumberFormat('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}).format(eur);
+    const html = '💡 CryptoCompare ' + sanitize(date) + ': <strong style="color:var(--gold2)">' + fmtVal + ' €</strong> / ' + sanitize(asset);
     _priceCache[cacheKey] = html;
     box.innerHTML = html;
   } catch(e) {
