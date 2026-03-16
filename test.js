@@ -1,6 +1,7 @@
 const fs = require('fs');
+const path = require('path');
 const vm = require('vm');
-const html = fs.readFileSync('c:/proyectos/Angel-TAX/index.html','utf-8');
+const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf-8');
 const js = html.split('<script>')[1].split('</script>')[0];
 const context = { console, state:{ops:[],lots:[],balances:[],year:'2024',costMethod:'fifo'}, BRACKETS:null, toNum: null, fmt:null, fmtQty:null, fifoCalc:null, calcTax:null, getSummary:null };
 vm.createContext(context);
