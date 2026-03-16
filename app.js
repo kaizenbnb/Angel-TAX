@@ -2129,8 +2129,8 @@ function selfCheck() {
           <tbody>
             ${results.map(r=>`<tr style="border-top:1px solid var(--bd)">
               <td style="padding:6px 8px;color:var(--text)">${r.name}</td>
-              <td style="padding:6px 8px;font-family:monospace;color:var(--dim);text-align:right">${typeof r.got==="number"?r.got.toFixed(4):String(r.got).substring(0,25)}</td>
-              <td style="padding:6px 8px;font-family:monospace;color:var(--dim);text-align:right">${typeof r.expected==="number"?r.expected.toFixed(4):String(r.expected).substring(0,25)}</td>
+              <td style="padding:6px 8px;font-family:monospace;color:var(--dim);text-align:right">${typeof r.got==="number"?r.got.toFixed(4):sanitize(String(r.got).substring(0,25))}</td>
+              <td style="padding:6px 8px;font-family:monospace;color:var(--dim);text-align:right">${typeof r.expected==="number"?r.expected.toFixed(4):sanitize(String(r.expected).substring(0,25))}</td>
               <td style="padding:6px 8px;text-align:center;font-weight:700;color:${r.ok?"var(--green)":"var(--red)"}">${r.ok?"✅":"❌"}</td>
             </tr>`).join("")}
           </tbody>
@@ -2171,7 +2171,7 @@ function renderAnalyzeResult() {
   return `
     <!-- RESUMEN EXTRAÍDO -->
     <div style="background:linear-gradient(135deg,#0e1220,#1a1408);border:1px solid var(--gold);border-radius:12px;padding:20px;margin-bottom:20px">
-      <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px">✅ Documento analizado — ${analyzeState.fileName}</div>
+      <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px">✅ Documento analizado — ${sanitize(analyzeState.fileName)}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">
         ${[
           {l:"Operaciones",      v:ops.length,           c:"var(--gold2)"},
@@ -2190,7 +2190,7 @@ function renderAnalyzeResult() {
     <!-- ALERTAS IA -->
     ${r.alerts && r.alerts.length > 0 ? r.alerts.map(a=>`
       <div class="alert alert-${a.type||"orange"}">
-        ${a.icon||"⚠️"} <strong>${a.title}:</strong> ${a.body}
+        ${a.icon||"⚠️"} <strong>${sanitize(a.title)}:</strong> ${sanitize(a.body)}
       </div>`).join("") : ""}
 
     <!-- CASILLAS A RELLENAR -->
@@ -2203,7 +2203,7 @@ function renderAnalyzeResult() {
             <div style="margin-bottom:4px"><span class="casilla">${c.num}</span></div>
             <div style="font-weight:600;font-size:13px;margin:4px 0">${c.label}</div>
             <div style="font-size:18px;font-weight:700;color:${c.value>=0?"var(--green)":"var(--red)"}">${c.value>=0?"+":""}${fmt(c.value)}</div>
-            ${c.note?`<div style="font-size:11px;color:var(--mut);margin-top:4px">${c.note}</div>`:""}
+            ${c.note?`<div style="font-size:11px;color:var(--mut);margin-top:4px">${sanitize(c.note)}</div>`:""}
           </div>`).join("")}
       </div>
     </div>` : ""}
@@ -2235,7 +2235,7 @@ function renderAnalyzeResult() {
     ${r.narrative ? `
     <div style="background:var(--sur2);border:1px solid var(--bor);border-radius:10px;padding:18px;margin-bottom:20px;font-size:13px;color:var(--dim);line-height:1.7">
       <div style="font-size:11px;color:var(--gold);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🤖 Análisis IA</div>
-      ${r.narrative}
+      ${sanitize(r.narrative)}
     </div>` : ""}
 
     <!-- ACCIONES -->
