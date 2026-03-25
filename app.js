@@ -58,7 +58,7 @@ const CCAA = [
   { id:"cataluna",       name:"Cataluña",               patrimonio: true,   threshold: 500000,  note:"Mínimo exento 500.000€, tipos hasta 2,75%" },
   { id:"extremadura",    name:"Extremadura",            patrimonio: true,   threshold: 500000,  note:"Mínimo exento 500.000€" },
   { id:"galicia",        name:"Galicia",                patrimonio: true,   threshold: 700000,  note:"Mínimo exento 700.000€" },
-  { id:"madrid",         name:"Madrid",                 patrimonio: false,  threshold: 0,       note:"Bonificación 100% — sin impuesto de patrimonio" },
+  { id:"madrid",         name:"Madrid",                 patrimonio: false,  threshold: 0,       note:"Bonificación 100% — sin impuesto de patrimonio. ⚠️ A partir de 3.000.000€ aplica el Impuesto de Solidaridad de las Grandes Fortunas (Ley 38/2022, estatal). Vivienda habitual exenta hasta 300.000€." },
   { id:"murcia",         name:"Murcia",                 patrimonio: true,   threshold: 700000,  note:"Mínimo exento 700.000€" },
   { id:"navarra",        name:"Navarra",                patrimonio: true,   threshold: 550000,  note:"Régimen foral — mínimo 550.000€" },
   { id:"pais_vasco",     name:"País Vasco",             patrimonio: true,   threshold: 800000,  note:"Régimen foral — mínimo 800.000€" },
@@ -238,7 +238,7 @@ function getDeadlineInfo() {
     // After June 30 - next campaign starts April of next year
     return { days: null, label: "Campaña cerrada", sub: `Próxima campaña: Abril ${yr+1}`, urgent: false, past: true };
   }
-  const campaignStart = new Date(yr, 3, 2); // April 2
+  const campaignStart = new Date(yr, 3, 8); // April 8 — apertura real campaña Renta 2025
   if (now < campaignStart) {
     const daysToStart = Math.ceil((campaignStart - now) / 86400000);
     return { days: daysToStart, label: `Campaña en ${daysToStart} días`, sub: `Apertura: 2 de abril ${yr}`, urgent: false, past: false, notOpen: true };
@@ -248,7 +248,7 @@ function getDeadlineInfo() {
   return {
     days: daysLeft,
     label: `${daysLeft} días para la Renta`,
-    sub: `Plazo: 30 de junio de ${yr}`,
+    sub: `Plazo: 30 de junio · Domiciliación: hasta 25 de junio de ${yr}`,
     urgent,
     past: false,
     notOpen: false
@@ -1055,6 +1055,21 @@ function renderGuide() {
     <div class="card">
       <div class="card-title">🎓 Guía Fiscal Cripto España 2025/2026</div>
       <div class="card-sub" style="margin-bottom:16px">Basada en normativa AEAT, Ley 35/2006 IRPF y consultas DGT vinculantes</div>
+      <div class="alert alert-gold" style="margin-bottom:12px">
+        <strong>📅 Plazos campaña Renta 2025</strong><br>
+        Apertura: <strong>8 de abril de 2026</strong> &nbsp;·&nbsp;
+        Plazo ordinario: <strong>30 de junio de 2026</strong> &nbsp;·&nbsp;
+        Domiciliación bancaria: <strong>hasta 25 de junio</strong><br><br>
+        <strong>⏱️ ¿Llegas tarde? Mejor tarde que mal.</strong>
+        El recargo por presentación extemporánea es del <strong>1% mensual</strong> durante los primeros 12 meses (Art. 27 LGT).
+        Si Hacienda te reclama antes de que presentes, la sanción puede ir del <strong>50% al 150%</strong> de la cuota.
+        No recomendamos presentar más allá de julio sin consultar con un asesor.
+      </div>
+      <div class="alert alert-blue" style="margin-bottom:16px;font-size:12px">
+        ⚠️ <strong>Nota:</strong> Las obligaciones fiscales —tanto informativas como de tributación— cambian constantemente
+        y varían por Comunidad Autónoma. Esta herramienta refleja la normativa vigente en la fecha de su última actualización.
+        Verifica siempre antes de presentar.
+      </div>
       <div class="alert alert-gold">📌 <strong>Principio básico:</strong> Cualquier operación con cripto que genere incremento de patrimonio tributa en España. No existe mínimo exento específico para cripto.</div>
       <div class="alert alert-blue">🔑 <strong>Regla de oro:</strong> Si solo compras y hodleas sin vender ni intercambiar, NO declaras en el IRPF. La simple compra no tributa nunca.</div>
     </div>
